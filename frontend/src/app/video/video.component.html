@@ -106,10 +106,66 @@
       </ng-container>
     </ng-template>
 
-    <!-- Control Options (Legacy) -->
+    <!-- Control Options -->
     <div
       class="control-options inline-flex justify-center items-start grid grid-cols-2 md:grid-cols-3 lg:flex gap-4 mt-8 place-items-center"
     >
+      <div
+        matTooltip="Select Aspect Ratio"
+        class="cursor-pointer w-24 inline-flex flex-col justify-start items-center"
+      >
+        <button
+          mat-fab
+          [matMenuTriggerFor]="aspectRatioMenu"
+          class="!w-16 !h-16 !shadow-none text-center justify-center text-stone-300 text-2xl"
+        >
+          <mat-icon>aspect_ratio</mat-icon>
+        </button>
+        <div class="text-center justify-center text-neutral-200 text-base mt-2">
+          {{ selectedAspectRatio }}
+        </div>
+        <mat-menu #aspectRatioMenu="matMenu">
+          <button
+            *ngFor="let ratio of aspectRatioOptions"
+            [disabled]="ratio.disabled"
+            mat-menu-item
+            [ngClass]="{
+              'menu-item-selected': searchRequest.aspectRatio === ratio.value,
+            }"
+            (click)="selectAspectRatio(ratio)"
+          >
+            <span>{{ ratio.viewValue }}</span>
+          </button>
+        </mat-menu>
+      </div>
+      <div
+        matTooltip="Select Model"
+        class="cursor-pointer w-28 inline-flex flex-col justify-start items-center"
+      >
+        <button
+          mat-fab
+          [matMenuTriggerFor]="modelMenu"
+          class="!w-16 !h-16 !shadow-none text-center justify-center text-stone-300 text-2xl"
+        >
+          <mat-icon svgIcon="content-type-icon"></mat-icon>
+        </button>
+        <div class="text-center justify-center text-neutral-200 text-base mt-2">
+          {{ selectedGenerationModel }}
+        </div>
+        <mat-menu #modelMenu="matMenu">
+          <button
+            *ngFor="let model of generationModels"
+            mat-menu-item
+            [ngClass]="{
+              'menu-item-selected':
+                searchRequest.generationModel === model.value,
+            }"
+            (click)="selectModel(model)"
+          >
+            <span>{{ model.viewValue }}</span>
+          </button>
+        </mat-menu>
+      </div>
 
       <div
         matTooltip="Select Style"
@@ -290,10 +346,7 @@
         <div class="text-center justify-center text-neutral-200 text-base mt-2">
           Negative Phrases ({{ negativePhrases.length }})
         </div>
-        <mat-menu
-          #negativePhrasesMenu="matMenu"
-          class="negative-phrases-menu"
-        >
+        <mat-menu #negativePhrasesMenu="matMenu" class="negative-phrases-menu">
           <div class="p-2" (click)="$event.stopPropagation()">
             <mat-form-field class="w-full">
               <mat-label>Things to avoid...</mat-label>
@@ -305,10 +358,7 @@
                   class="negative-prompt-chips"
                 >
                   {{ phrase }}
-                  <button
-                    matChipRemove
-                    [matTooltip]="'Remove ' + phrase"
-                  >
+                  <button matChipRemove [matTooltip]="'Remove ' + phrase">
                     <mat-icon>cancel</mat-icon>
                   </button>
                 </mat-chip-row>

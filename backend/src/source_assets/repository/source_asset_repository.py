@@ -14,108 +14,135 @@
 
 from typing import List, Optional
 
-from fastapi import Depends
-from sqlalchemy import func, select, or_, and_
-from sqlalchemy.ext.asyncio import AsyncSession
+from google.cloud import firestore
+from google.cloud.firestore_v1.base_aggregation import AggregationResult
+from google.cloud.firestore_v1.base_query import FieldFilter
+from google.cloud.firestore_v1.query_results import QueryResultsList
 
 from src.common.base_repository import BaseRepository
 from src.common.dto.pagination_response_dto import PaginationResponseDto
-from src.database import get_db
 from src.source_assets.dto.source_asset_search_dto import SourceAssetSearchDto
 from src.source_assets.schema.source_asset_model import (
     AssetScopeEnum,
     AssetTypeEnum,
-    SourceAsset,
     SourceAssetModel,
 )
 
 
-class SourceAssetRepository(BaseRepository[SourceAsset, SourceAssetModel]):
-    """Handles database operations for SourceAsset objects."""
+class SourceAssetRepository(BaseRepository[SourceAssetModel]):
+    """Handles database operations for UserAsset objects in Firestore."""
 
-    def __init__(self, db: AsyncSession = Depends(get_db)):
-        super().__init__(model=SourceAsset, schema=SourceAssetModel, db=db)
+    def __init__(self):
+        super().__init__(
+            collection_name="source_assets", model=SourceAssetModel
+        )
 
-    async def find_by_hash(
-        self, user_id: int, file_hash: str
+    def find_by_hash(
+        self, user_id: str, file_hash: str
     ) -> Optional[SourceAssetModel]:
         """Finds a user asset by its file hash to prevent duplicates."""
-        result = await self.db.execute(
-            select(self.model)
-            .where(self.model.user_id == user_id)
-            .where(self.model.file_hash == file_hash)
+        query = (
+            self.collection_ref.where(
+                filter=FieldFilter("user_id", "==", user_id)
+            )
+            .where(filter=FieldFilter("file_hash", "==", file_hash))
             .limit(1)
         )
-        asset = result.scalar_one_or_none()
-        if not asset:
+        docs = list(query.stream())
+        if not docs:
             return None
-        return self.schema.model_validate(asset)
+        return self.model.model_validate(docs[0].to_dict())
 
-    async def query(
+    def query(
         self,
         search_dto: SourceAssetSearchDto,
-        target_user_id: Optional[int] = None,
+        target_user_id: Optional[str] = None,
     ) -> PaginationResponseDto[SourceAssetModel]:
         """
-        Performs a paginated query for assets.
+        Performs a paginated query for assets. If target_user_id is provided,
+        it scopes the search to that specific user.
         """
-        query = select(self.model)
+        base_query = self.collection_ref
 
-        # Apply filters
+        # Apply filters from the DTO
         if search_dto.mime_type:
             if search_dto.mime_type.endswith("image/*"):
-                # Handle wildcard prefix search
-                # In SQL, we can use LIKE 'image/%'
-                # But the original code did "!=" "video/mp4" which is weird for "image/*"
-                # Let's assume we want to match "image/%"
-                query = query.where(self.model.mime_type.like("image/%"))
+                # TODO: Handle wildcard prefix search (e.g., "image/*")
+                # by creating a range query that finds all strings starting with the prefix.
+                base_query = base_query.where(
+                    filter=FieldFilter("mime_type", "!=", "video/mp4")
+                )
             else:
-                query = query.where(self.model.mime_type == search_dto.mime_type)
-        
+                # Standard exact match
+                base_query = base_query.where(
+                    filter=FieldFilter("mime_type", "==", search_dto.mime_type)
+                )
         if target_user_id:
-            query = query.where(self.model.user_id == target_user_id)
-        
+            base_query = base_query.where(
+                filter=FieldFilter("user_id", "==", target_user_id)
+            )
         if search_dto.scope:
-            query = query.where(self.model.scope == search_dto.scope.value)
-        
+            base_query = base_query.where(
+                filter=FieldFilter("scope", "==", search_dto.scope)
+            )
         if search_dto.asset_type:
-            query = query.where(self.model.asset_type == search_dto.asset_type.value)
-        
+            base_query = base_query.where(
+                filter=FieldFilter("asset_type", "==", search_dto.asset_type)
+            )
         if search_dto.original_filename:
-            # Prefix search
-            query = query.where(
-                self.model.original_filename.like(f"{search_dto.original_filename}%")
+            # This enables prefix searching (e.g., 'file' matches 'file.txt')
+            base_query = base_query.where(
+                filter=FieldFilter(
+                    "original_filename", ">=", search_dto.original_filename
+                )
+            ).where(
+                filter=FieldFilter(
+                    "original_filename",
+                    "<=",
+                    search_dto.original_filename + "\uf8ff",
+                )
             )
 
-        # Count
-        count_query = select(func.count()).select_from(query.subquery())
-        count_result = await self.db.execute(count_query)
-        total_count = count_result.scalar_one()
+        count_query = base_query.count(alias="total")
+        aggregation_result = count_query.get()
 
-        # Order and Pagination
-        query = query.order_by(self.model.created_at.desc())
-        query = query.limit(search_dto.limit)
-        
-        # Execute
-        result = await self.db.execute(query)
-        assets = result.scalars().all()
-        
-        asset_data = [self.schema.model_validate(asset) for asset in assets]
+        total_count = 0
+        if (
+            isinstance(aggregation_result, QueryResultsList)
+            and aggregation_result
+            and isinstance(aggregation_result[0][0], AggregationResult)  # type: ignore
+        ):
+            total_count = int(aggregation_result[0][0].value)  # type: ignore
 
-        # Calculate pagination metadata
-        page = (search_dto.offset // search_dto.limit) + 1
-        page_size = search_dto.limit
-        total_pages = (total_count + page_size - 1) // page_size
+        data_query = base_query.order_by(
+            "created_at", direction=firestore.Query.DESCENDING
+        )
+
+        if search_dto.start_after:
+            last_doc_snapshot = self.collection_ref.document(
+                search_dto.start_after
+            ).get()
+            if last_doc_snapshot.exists:
+                data_query = data_query.start_after(last_doc_snapshot)
+
+        data_query = data_query.limit(search_dto.limit)
+
+        # Stream results and validate with the Pydantic model
+        documents = list(data_query.stream())
+        media_item_data = [doc.to_dict() for doc in documents]
+
+        next_page_cursor = None
+        if len(documents) == search_dto.limit:
+            # The cursor is the ID of the last document fetched.
+            next_page_cursor = documents[-1].id
 
         return PaginationResponseDto[SourceAssetModel](
             count=total_count,
-            page=page,
-            page_size=page_size,
-            total_pages=total_pages,
-            data=asset_data,
+            next_page_cursor=next_page_cursor,
+            data=media_item_data,  # type: ignore
         )
 
-    async def find_by_scope_and_types(
+    def find_by_scope_and_types(
         self, scope: AssetScopeEnum, asset_types: List[AssetTypeEnum]
     ) -> List[SourceAssetModel]:
         """

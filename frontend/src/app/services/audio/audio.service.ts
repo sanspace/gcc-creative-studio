@@ -1,25 +1,28 @@
-/**
- * Copyright 2025 Google LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
-import { MediaItem } from '../../common/models/media-item.model';
-import {environment} from '../../../environments/environment';
-import {LanguageEnum, VoiceEnum} from '../../audio/audio.constants';
+import {
+  BehaviorSubject,
+  catchError,
+  EMPTY,
+  Observable,
+  Subscription,
+  tap,
+  timer,
+  switchMap,
+} from 'rxjs';
+import {
+  JobStatus,
+  MediaItem,
+} from '../../common/models/media-item.model';
+import { environment } from '../../../environments/environment';
+import { LanguageEnum, VoiceEnum } from '../../audio/audio.constants'; 
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { handleErrorSnackbar, handleSuccessSnackbar } from '../../utils/handleMessageSnackbar'; 
+
+/**
+ * Minimal in-file replacements for the missing utils so this service can compile.
+ * These mirror the expected behavior: show a snackbar and log errors to console.
+ */
 
 // 1. Define the Enum to match Backend exactly
 export enum GenerationModelEnum {
@@ -50,15 +53,71 @@ export interface CreateAudioDto {
 }
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class AudioService {
-  // Updated endpoint to the generic one
-  private apiUrl = `${environment.backendURL}/audios/generate`;
+  private apiUrl = `${environment.backendURL}/gallery`;
+  private activeAudioJob = new BehaviorSubject<MediaItem | null>(null);
+  public activeAudioJob$ = this.activeAudioJob.asObservable();
+  private pollingSubscription: Subscription | null = null;
 
-  constructor(private http: HttpClient) { }
+  constructor(private http: HttpClient, private snackBar: MatSnackBar) {}
 
   generateAudio(request: CreateAudioDto): Observable<MediaItem> {
-    return this.http.post<MediaItem>(this.apiUrl, request);
+    return this.http.post<MediaItem>(`${environment.backendURL}/audios/generate`, request).pipe(
+      tap(initialItem => {
+        this.activeAudioJob.next(initialItem);
+        this.startAudioPolling(initialItem.id);
+      })
+    );
+  }
+
+  getGalleryMediaItem(mediaId: string): Observable<MediaItem> {
+    return this.http.get<MediaItem>(`${this.apiUrl}/item/${mediaId}`);
+  }
+
+  private startAudioPolling(mediaId: string): void {
+    this.stopAudioPolling();
+
+    this.pollingSubscription = timer(3000, 5000) // Start after 3s, then every 5s
+      .pipe(
+        switchMap(() => this.getGalleryMediaItem(mediaId)),
+        tap(latestItem => {
+          this.activeAudioJob.next(latestItem);
+
+          if (
+            latestItem.status === JobStatus.COMPLETED ||
+            latestItem.status === JobStatus.FAILED
+          ) {
+            this.stopAudioPolling();
+            if (latestItem.status === JobStatus.COMPLETED) {
+              handleSuccessSnackbar(this.snackBar, 'Your audio is ready!');
+            } else {
+              handleErrorSnackbar(
+                this.snackBar,
+                { message: latestItem.errorMessage || latestItem.error_message },
+                `Audio generation failed: ${
+                  latestItem.errorMessage || latestItem.error_message
+                }`
+              );
+            }
+          }
+        }),
+        catchError(err => {
+          console.error('Polling failed', err);
+          this.stopAudioPolling();
+          return EMPTY;
+        })
+      )
+      .subscribe();
+  }
+
+  private stopAudioPolling(): void {
+    this.pollingSubscription?.unsubscribe();
+    this.pollingSubscription = null;
+  }
+
+  clearActiveAudioJob() {
+    this.activeAudioJob.next(null);
   }
 }

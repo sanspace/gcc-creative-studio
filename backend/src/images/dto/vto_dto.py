@@ -36,7 +36,7 @@ class VtoInputLink(BaseDto):
     or a previously generated media item.
     """
 
-    source_asset_id: Optional[int] = Field(
+    source_asset_id: Optional[str] = Field(
         default=None, description="The ID of the source asset to use."
     )
     source_media_item: Optional[VtoSourceMediaItemLink] = Field(
@@ -59,8 +59,8 @@ class VtoInputLink(BaseDto):
 class VtoDto(BaseDto):
     """Request schema for Virtual Try-On image generation."""
 
-    workspace_id: int = Field(
-        ge=1, description="The ID of the workspace for this generation."
+    workspace_id: str = Field(
+        min_length=1, description="The ID of the workspace for this generation."
     )
     number_of_media: int = Field(
         default=1,

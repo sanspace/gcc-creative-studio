@@ -492,7 +492,8 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
         r => r.value === templateAspectRatio,
       );
       if (aspectRatioOption) {
-        this.selectAspectRatio(aspectRatioOption);
+        this.searchRequest.aspectRatio = aspectRatioOption.value;
+        this.selectedAspectRatio = aspectRatioOption.viewValue;
       }
     }
 

@@ -70,6 +70,14 @@
     }
 }
 
+.close-button {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 101;
+  color: white;
+}
+
 // 3. CUSTOM AUDIO PLAYER STYLES
 .result-container {
     display: flex;
