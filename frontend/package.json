@@ -55,6 +55,7 @@
     "@types/file-saver": "^2.0.7",
     "@types/jasmine": "~5.1.0",
     "@types/node": "^18.18.0",
+    "@vitest/coverage-v8": "^4.0.16",
     "firebase-tools": "^13.0.0",
     "gts": "^6.0.2",
     "jasmine-core": "~5.1.0",
