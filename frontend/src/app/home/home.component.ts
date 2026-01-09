@@ -74,9 +74,9 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
   activeWorkspaceId$: Observable<number | null>;
 
   @HostListener('window:keydown.control.enter', ['$event'])
-  handleCtrlEnter(event: KeyboardEvent) {
+  handleCtrlEnter(event: Event) {
     if (!this.isLoading) {
-      event.preventDefault();
+      (event as KeyboardEvent).preventDefault();
       this.searchTerm();
     }
   }
