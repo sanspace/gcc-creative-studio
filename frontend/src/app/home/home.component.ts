@@ -50,10 +50,12 @@ import {
   EnrichedSourceAsset,
   GenerationParameters,
 } from '../fun-templates/media-template.model';
-import { ImageStateService } from '../services/image-state.service';
+
 import { SearchService } from '../services/search/search.service';
 import { WorkspaceStateService } from '../services/workspace/workspace-state.service';
 import { handleErrorSnackbar, handleInfoSnackbar, handleSuccessSnackbar } from '../utils/handleMessageSnackbar';
+import { ImageStateService } from '../services/image-state.service';
+
 
 @Component({
   selector: 'app-home',
@@ -672,7 +674,7 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
 
   searchTerm() {
     if (!this.searchRequest.prompt) {
-      handleInfoSnackbar(this._snackBar, 'Please enter a prompt to generate an image.');
+      this._snackBar.open('Please enter a prompt to generate an image.', 'OK', { duration: 3000 });
       return;
     }
 
@@ -815,7 +817,7 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
 
     // Check if we reached the limit
     if (this.referenceImages.length >= this.selectedGenerationModelObject.capabilities.maxReferenceImages) {
-      handleInfoSnackbar(this._snackBar, `You can only add up to ${this.selectedGenerationModelObject.capabilities.maxReferenceImages} reference images for this model.`);
+      this._snackBar.open(`You can only add up to ${this.selectedGenerationModelObject.capabilities.maxReferenceImages} reference images for this model.`, 'OK', { duration: 3000 });
       return;
     }
 
@@ -872,7 +874,7 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
             sourceAssetId: assetId,
           });
         } else {
-          handleInfoSnackbar(this._snackBar, 'Image already added.');
+          this._snackBar.open('Image already added.', 'OK', { duration: 3000 });
         }
       });
     }
@@ -895,7 +897,7 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
               sourceMediaItem: item,
             });
           } else {
-            handleInfoSnackbar(this._snackBar, 'Image already added.');
+            this._snackBar.open('Image already added.', 'OK', { duration: 3000 });
           }
         },
       );
@@ -1014,7 +1016,7 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
       });
 
       if (isDuplicate) {
-        handleInfoSnackbar(this._snackBar, 'This image is already selected.');
+        this._snackBar.open('This image is already selected.', 'OK', { duration: 3000 });
         return;
       }
 
