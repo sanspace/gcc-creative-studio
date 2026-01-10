@@ -261,7 +261,7 @@ describe('VideoComponent', () => {
   describe('Search Term', () => {
     beforeEach(() => {
       mockWorkspaceStateService.getActiveWorkspaceId.and.returnValue(
-        'test-workspace',
+        10000,
       );
     });
 

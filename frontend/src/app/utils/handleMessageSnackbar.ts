@@ -22,12 +22,10 @@ export const handleErrorSnackbar: (
   snackBar: MatSnackBar,
   error: any,
   context: string,
-  duration?: number,
 ) => void = (
   snackBar: MatSnackBar,
   error: any,
   context: string,
-  duration: number = 20000,
 ) => {
   console.error(`${context} error:`, error);
   const errorMessage =
@@ -35,6 +33,7 @@ export const handleErrorSnackbar: (
     error?.error?.detail ||
     error?.message ||
     'Something went wrong';
+  const duration = 20000;
 
   try {
     const notificationService = AppInjector.get(NotificationService);
@@ -52,9 +51,9 @@ export const handleErrorSnackbar: (
 
 export const handleSuccessSnackbar: (
   snackBar: MatSnackBar,
-  msg: any,
+  msg: string,
   duration?: number,
-) => void = (snackBar: MatSnackBar, msg: any, duration?: number) => {
+) => void = (snackBar: MatSnackBar, msg: string, duration?: number) => {
   try {
     const notificationService = AppInjector.get(NotificationService);
     notificationService.show(
@@ -71,9 +70,9 @@ export const handleSuccessSnackbar: (
 
 export const handleInfoSnackbar: (
   snackBar: MatSnackBar,
-  msg: any,
+  msg: string,
   duration?: number,
-) => void = (snackBar: MatSnackBar, msg: any, duration: number = 10000) => {
+) => void = (snackBar: MatSnackBar, msg: string, duration: number = 10000) => {
   try {
     const notificationService = AppInjector.get(NotificationService);
     notificationService.show(msg, 'info', undefined, 'info', duration);
