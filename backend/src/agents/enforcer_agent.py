@@ -8,6 +8,7 @@ from typing import Optional, List, Dict, Any
 from src.tools.vector_search_tool import create_search_branding_guidelines_tool
 from src.common.vector_search_service import VectorSearchService
 from src.multimodal.gemini_service import GeminiService
+from src.brand_guidelines.repository.brand_guideline_repository import BrandGuidelineRepository
 from fastapi import Depends
 
 logger = logging.getLogger(__name__)
@@ -20,10 +21,15 @@ class BrandingEnforcerAgent:
     def __init__(
         self, 
         vector_search_service: VectorSearchService = Depends(),
-        gemini_service: GeminiService = Depends()
+        gemini_service: GeminiService = Depends(),
+        brand_guideline_repo: BrandGuidelineRepository = Depends()
     ):
         # Create the tool instance (callable)
-        self.search_tool = create_search_branding_guidelines_tool(vector_search_service, gemini_service)
+        self.search_tool = create_search_branding_guidelines_tool(
+            vector_search_service, 
+            gemini_service,
+            brand_guideline_repo
+        )
         self.gemini_service = gemini_service
 
     async def enforce_guidelines(self, user_prompt: str, workspace_id: Optional[str] = None) -> Dict[str, Any]:
@@ -40,8 +46,8 @@ class BrandingEnforcerAgent:
         logger.info(f"Enforcing guidelines for prompt: '{user_prompt}' in workspace: {workspace_id}")
         
         # 1. Retrieve Guidelines using the tool
-        # The tool function signature is search_branding_guidelines(query: str, workspace_id: str = "Global")
-        guidelines_text = self.search_tool(user_prompt, str(workspace_id) if workspace_id else "Global")
+        # The tool function is async now
+        guidelines_text = await self.search_tool(user_prompt, str(workspace_id) if workspace_id else "Global")
         
         # 2. Synthesize Enhanced Prompt using Gemini
         # We construct a specific system instruction for the Enforcer.

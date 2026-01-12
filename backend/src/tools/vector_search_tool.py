@@ -1,37 +1,40 @@
 from typing import List, Optional
 from src.common.vector_search_service import VectorSearchService
 from src.multimodal.gemini_service import GeminiService
-from google.cloud.aiplatform.matching_engine.matching_engine_index_endpoint import Namespace
+from src.brand_guidelines.repository.brand_guideline_repository import BrandGuidelineRepository
+
 import logging
+import json
 
 logger = logging.getLogger(__name__)
 
-def create_search_branding_guidelines_tool(vector_search_service: VectorSearchService, gemini_service: GeminiService):
+def create_search_branding_guidelines_tool(
+    vector_search_service: VectorSearchService, 
+    gemini_service: GeminiService,
+    brand_guideline_repo: BrandGuidelineRepository
+):
     """
     Creates a function tool for searching branding guidelines.
     """
     
-    def search_branding_guidelines(query: str, workspace_id: str = "Global") -> str:
+    async def search_branding_guidelines(query: str, workspace_id: str = "Global") -> str:
         """
         Searches for branding guidelines and rules relevant to a query.
         
-        Use this tool to find specific constraints, allowed colors, fonts, prohibited elements, 
-        and other branding rules that must be followed.
-
         Args:
-            query (str): The search query to find relevant branding rules (e.g., "logo usage", "colors for banners").
-            workspace_id (str, optional): The ID of the workspace to scope the search. Defaults to "Global".
+            query (str): The search query.
+            workspace_id (str, optional): The ID of the workspace. Defaults to "Global".
 
         Returns:
-            str: A formatted string containing the found branding rules or a message indicating no rules were found.
+            str: Found branding rules.
         """
         logger.info(f"search_branding_guidelines tool called - Query: {query}, Workspace: {workspace_id}")
         
-        # 1. Generate embeddings (Text and Multimodal)
+        # 1. Generate embeddings
         text_query_embedding = gemini_service.generate_embedding(query, model_type="text")
         multimodal_query_embedding = gemini_service.generate_embedding(query, model_type="multimodal")
         
-        # 1.1 Generate Sparse Embedding (Local)
+        # 1.1 Generate Sparse Embedding
         from src.common.sparse_embedding_service import SparseEmbeddingService
         sparse_service = SparseEmbeddingService()
         sparse_embedding = sparse_service.get_sparse_embedding(query)
@@ -40,32 +43,18 @@ def create_search_branding_guidelines_tool(vector_search_service: VectorSearchSe
             return "Error: Failed to generate embeddings for query."
 
         # 2. Search
-        scope_filter = workspace_id or "Global"
-        
-        # Fetch active guidelines to filter out "zombie" vectors
-        from src.brand_guidelines.repository.brand_guideline_repository import BrandGuidelineRepository
-        from google.cloud.firestore_v1.base_query import FieldFilter
-        
-        repo = BrandGuidelineRepository()
-        
-        # Determine Firestore filter for workspace
+        scope_filter = workspace_id if workspace_id and workspace_id != "Global" else None
+        scope_val = None
+        if scope_filter:
+             try:
+                 scope_val = int(scope_filter)
+             except ValueError:
+                 scope_val = None # Should probably handle error or assume Global?
+
         try:
-            query_ref = repo.collection_ref
-            if scope_filter == "Global":
-                query_ref = query_ref.where(filter=FieldFilter("workspace_id", "==", None))
-            else:
-                # Ensure workspace_id is an integer for Firestore if possible
-                try:
-                    scope_val = int(scope_filter)
-                except ValueError:
-                    scope_val = scope_filter
-                query_ref = query_ref.where(filter=FieldFilter("workspace_id", "==", scope_val))
-                
-            docs = list(query_ref.stream())
-            active_guideline_ids = [doc.id for doc in docs]
-            
-            logger.info(f"search_branding_guidelines - Found {len(active_guideline_ids)} active guidelines for scope {scope_filter}")
-            
+             # Use the injected repo!
+             active_guideline_ids = await brand_guideline_repo.get_active_guideline_ids(workspace_id=scope_val)
+             logger.info(f"search_branding_guidelines - Found {len(active_guideline_ids)} active guidelines for scope {workspace_id}")
         except Exception as e:
             logger.error(f"Failed to fetch active guidelines: {e}")
             active_guideline_ids = []
@@ -75,8 +64,8 @@ def create_search_branding_guidelines_tool(vector_search_service: VectorSearchSe
             return "No branding guidelines found for this workspace."
 
         restricts = [
-            Namespace("scope", [scope_filter]),
-            Namespace("guideline_id", active_guideline_ids)
+            {"namespace": "scope", "allow_list": [workspace_id or "Global"]},
+            {"namespace": "guideline_id", "allow_list": active_guideline_ids}
         ]
         
         search_results = []
@@ -84,7 +73,6 @@ def create_search_branding_guidelines_tool(vector_search_service: VectorSearchSe
         # Search Text Index
         if text_query_embedding:
             try:
-                # Returns List[MatchNeighbor]
                 text_results = vector_search_service.find_neighbors(
                     query_embedding=text_query_embedding,
                     num_neighbors=5,
@@ -102,7 +90,7 @@ def create_search_branding_guidelines_tool(vector_search_service: VectorSearchSe
             try:
                 image_results = vector_search_service.find_neighbors(
                     query_embedding=multimodal_query_embedding,
-                    num_neighbors=3, # Fewer images needed
+                    num_neighbors=3,
                     restricts=restricts,
                     index_type="image",
                     sparse_embedding=sparse_embedding
@@ -120,11 +108,9 @@ def create_search_branding_guidelines_tool(vector_search_service: VectorSearchSe
         guidelines_cache = {}
         
         from src.common.storage_service import GcsService
-        import json
         gcs_service = GcsService()
 
         for result in search_results:
-            # ID format: {guideline_id}_{type}_{index}
             if "_text_" in result.id:
                 guideline_id, index_str = result.id.split("_text_")
                 type_ = "text"
@@ -140,16 +126,20 @@ def create_search_branding_guidelines_tool(vector_search_service: VectorSearchSe
                 continue
             
             if guideline_id not in guidelines_cache:
-                guideline = repo.get_by_id(guideline_id)
-                if guideline:
-                    guidelines_cache[guideline_id] = guideline
+                try:
+                    gid_int = int(guideline_id)
+                    guideline = await brand_guideline_repo.get_by_id(gid_int)
+                    if guideline:
+                        guidelines_cache[guideline_id] = guideline
+                except ValueError:
+                    logger.warning(f"Invalid guideline ID format: {guideline_id}")
+                    continue
             
             guideline = guidelines_cache.get(guideline_id)
             if not guideline:
                 continue
 
             if type_ == "text":
-                # Fetch chunk from GCS
                 blob_path = f"brand-guidelines/{guideline.workspace_id or 'global'}/processed/{guideline_id}/text/chunk_{index}.json"
                 try:
                     full_uri = f"gs://{gcs_service.bucket_name}/{blob_path}"
@@ -169,7 +159,6 @@ def create_search_branding_guidelines_tool(vector_search_service: VectorSearchSe
                     relevant_images.append(f"- [Source: {guideline.name}] {uri}")
 
         if not relevant_text_chunks and not relevant_images:
-            logger.info("search_branding_guidelines - No relevant content found after filtering/fetching.")
             return "No relevant branding rules or images found."
 
         response_parts = []
@@ -181,39 +170,23 @@ def create_search_branding_guidelines_tool(vector_search_service: VectorSearchSe
             response_parts.append("\nFound the following relevant reference images:")
             response_parts.extend(relevant_images)
 
-        logger.info(f"search_branding_guidelines - Returning {len(relevant_text_chunks)} text chunks and {len(relevant_images)} images.")
         return "\n".join(response_parts)
 
     return search_branding_guidelines
 
-def create_fetch_guideline_tool():
+def create_fetch_guideline_tool(brand_guideline_repo: BrandGuidelineRepository):
     """
     Creates a function tool for fetching full branding guideline details.
     """
-    def fetch_full_guideline(guideline_id: str) -> str:
-        """
-        Retrieves the full text and details of a specific branding guideline.
-        
-        Use this tool when you need more context than what the search tool provides, 
-        or when a rule references a specific guideline ID.
-
-        Args:
-            guideline_id (str): The ID of the guideline to fetch.
-
-        Returns:
-            str: The full guideline text and metadata.
-        """
+    async def fetch_full_guideline(guideline_id: str) -> str:
+        """Retrieves full guideline."""
         logger.info(f"fetch_full_guideline tool called - ID: {guideline_id}")
         
-        from src.brand_guidelines.repository.brand_guideline_repository import BrandGuidelineRepository
-        repo = BrandGuidelineRepository()
-        
         try:
-            guideline = repo.get_by_id(guideline_id)
+            guideline = await brand_guideline_repo.get_by_id(int(guideline_id))
             if not guideline:
                 return f"Error: Guideline with ID {guideline_id} not found."
                 
-            # Construct a detailed string
             details = [
                 f"Guideline: {guideline.name}",
                 f"Tone of Voice: {guideline.tone_of_voice_summary or 'N/A'}",

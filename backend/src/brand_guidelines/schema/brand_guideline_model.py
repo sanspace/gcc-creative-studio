@@ -47,6 +47,7 @@ class BrandGuideline(Base):
     
     tone_of_voice_summary: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     visual_style_summary: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    reference_image_uris: Mapped[List[str]] = mapped_column(ARRAY(String), default=[])
 
     created_at: Mapped[datetime.datetime] = mapped_column(
         DateTime(timezone=True),
@@ -96,6 +97,11 @@ class BrandGuidelineModel(BaseDocument):
     logo_asset_id: Optional[int] = Field(
         default=None,
         description="The ID of a document in the 'user_assets' collection to be used as the logo.",
+    )
+    
+    reference_image_uris: List[str] = Field(
+        default_factory=list,
+        description="List of GCS URIs for extracted reference images.",
     )
 
     guideline_text: Optional[str] = Field(

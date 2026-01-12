@@ -62,7 +62,8 @@ async def main():
             
             enforcer = BrandingEnforcerAgent(
                 vector_search_service=vector_service,
-                gemini_service=gemini_service
+                gemini_service=gemini_service,
+                brand_guideline_repo=bg_repo
             )
             validator = ValidatorAgent(
                 gemini_service=gemini_service
@@ -148,15 +149,22 @@ async def main():
             # ---------------------------------------------------------
             # Verify that we can generate a sparse embedding for a keyword from the doc
             # This requires knowing a keyword. Let's guess or check the text.
-            guideline_text = g.guideline_text
+            guideline_text = g.guideline_text or ""
+            # Fallback to summaries if text is empty, just for testing
+            if not guideline_text:
+                guideline_text = (g.tone_of_voice_summary or "") + "\n" + (g.visual_style_summary or "")
+            
             snippet = guideline_text[:50] if guideline_text else "No Text"
             logger.info(f"Extracted Text Snippet: {snippet}")
             
-            sparse_vec = sparse_service.get_sparse_embedding(guideline_text[:100])
-            if sparse_vec:
-                logger.info(f"Sparse Vector Generated! Dimensions: {len(sparse_vec['dimensions'])}")
+            if guideline_text:
+                sparse_vec = sparse_service.get_sparse_embedding(guideline_text[:1000]) # Use reasonable chunk
+                if sparse_vec:
+                    logger.info(f"Sparse Vector Generated! Dimensions: {len(sparse_vec['dimensions'])}")
+                else:
+                    logger.error("Sparse Vector Generation Failed (Locally).")
             else:
-                logger.error("Sparse Vector Generation Failed (Locally).")
+                logger.warning("No text available for sparse vector generation test.")
 
             # ---------------------------------------------------------
             # 3. Agent Generation (Enforcer Only Test)
@@ -171,11 +179,10 @@ async def main():
             # For now, generic prompt.
             
             # Manually invoke Enforcer
-            enforcer = agent_service.branding_enforcer_agent
+            enforcer = agent_service.enforcer_agent
             enhanced_prompt = await enforcer.enforce_guidelines(
                 prompt, 
                 workspace_id=None, # Global
-                media_type="image"
             )
             
             logger.info("------------------------------------------------")

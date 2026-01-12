@@ -84,3 +84,17 @@ class BrandGuidelineRepository(BaseRepository[BrandGuideline, BrandGuidelineMode
             total_pages=total_pages,
             data=guideline_data,
         )
+
+    async def get_active_guideline_ids(self, workspace_id: Optional[int] = None) -> list[str]:
+        """Returns a list of IDs for active (completed) guidelines in the scope."""
+        from src.common.schema.media_item_model import JobStatusEnum
+        
+        query = select(self.model.id).where(self.model.status == JobStatusEnum.COMPLETED)
+        
+        if workspace_id is not None:
+             query = query.where(self.model.workspace_id == workspace_id)
+        else:
+             query = query.where(self.model.workspace_id == None)
+             
+        result = await self.db.execute(query)
+        return [str(id_) for id_ in result.scalars().all()]

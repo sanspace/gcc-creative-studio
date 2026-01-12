@@ -53,6 +53,8 @@ from src.multimodal.rewriters import (
 )
 from src.multimodal.schema.gemini_model_setup import GeminiModelSetup
 from src.videos.dto.create_veo_dto import CreateVeoDto
+import vertexai
+from vertexai.vision_models import MultiModalEmbeddingModel, Image as VertexImage, Video as VertexVideo
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +80,15 @@ class GeminiService:
         """Initializes the Gemini client and configuration."""
         self.client: Client = GeminiModelSetup.init()
         self.cfg = config_service
+        
+        # Initialize Vertex AI with explicit quota project for ADC support
+        import google.auth
+        credentials, _ = google.auth.default(quota_project_id=self.cfg.PROJECT_ID)
+        vertexai.init(
+            project=self.cfg.PROJECT_ID, 
+            location="us-central1",
+            credentials=credentials
+        )
         self.rewriter_model = self.cfg.GEMINI_MODEL_ID
         self.brand_guideline_repo = brand_guideline_repo
 
@@ -522,20 +533,64 @@ class GeminiService:
              
         try:
             # Prepare contents
-            request_content = content
             if model == "multimodal-embedding-001":
+                mm_model = MultiModalEmbeddingModel.from_pretrained("multimodalembedding@001")
+                
+                image = None
+                video = None
+                text = None
+                
                 if isinstance(content, list):
-                    # Wrap parts in Content object
-                    request_content = types.Content(parts=content)
+                    for part in content:
+                        if part.text:
+                            text = part.text
+                        elif part.file_data:
+                             if part.file_data.mime_type and part.file_data.mime_type.startswith("image/"):
+                                 image = VertexImage.load_from_file(part.file_data.file_uri)
+                             elif part.file_data.mime_type and part.file_data.mime_type.startswith("video/"):
+                                 video = VertexVideo.load_from_file(part.file_data.file_uri)
+                        
+                        # types.Part might have 'file_uri' if created via from_uri (less common in V2 SDK)
+                        if hasattr(part, "file_uri") and part.file_uri:
+                             # Determine if image or video based on mime or uri?
+                             if getattr(part, "mime_type", "") and part.mime_type.startswith("image/"):
+                                 image = VertexImage.load_from_file(part.file_uri)
+                             elif getattr(part, "mime_type", "") and part.mime_type.startswith("video/"):
+                                 video = VertexVideo.load_from_file(part.file_uri)
+                
                 elif isinstance(content, str):
-                    # Even if text, if targeting multimodal model, wrap it
-                    request_content = types.Content(parts=[types.Part(text=content)])
+                    text = content
 
-            response = self.client.models.embed_content(
-                model=model,
-                contents=request_content
-            )
-            return response.embeddings[0].values
+                embeddings = mm_model.get_embeddings(
+                    image=image,
+                    video=video,
+                    contextual_text=text,
+                )
+                
+                # Return based on what was requested/generated. 
+                # If multimodal, we might want image_embedding or text_embedding or video_embedding
+                # common interface returns "embedding".
+                # If input had image, return image_embedding.
+                # If input had video, return video_embedding[0].embedding?
+                # The caller expects a single list of floats.
+                
+                if image:
+                    return embeddings.image_embedding
+                elif video:
+                    # video embeddings are segmented. Return the first one?
+                    if embeddings.video_embeddings:
+                        return embeddings.video_embeddings[0].embedding
+                elif text:
+                    return embeddings.text_embedding
+                
+                return None
+
+            else:
+                response = self.client.models.embed_content(
+                    model=model,
+                    contents=content
+                )
+                return response.embeddings[0].values
         except Exception as e:
             logger.error(f"Failed to generate embedding with model {model}: {e}")
             return None
