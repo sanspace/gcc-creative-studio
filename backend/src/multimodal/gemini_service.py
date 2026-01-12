@@ -499,3 +499,43 @@ class GeminiService:
                 f"Failed to aggregate brand info summaries with Gemini: {e}"
             )
             return None
+
+    def generate_embedding(
+        self, 
+        content: Union[str, List[types.Part]], 
+        model_type: Optional[str] = None
+    ) -> Optional[List[float]]:
+        """
+        Generates an embedding for the given text or multimodal content.
+        
+        Args:
+            content: A string (for text embedding) or a list of parts (for multimodal).
+            model_type: Optional "text" or "multimodal" to force model selection.
+            
+        Returns:
+            A list of floats representing the embedding, or None if failed.
+        """
+        # Determine model
+        model = "text-embedding-004"
+        if isinstance(content, list) or model_type == "multimodal":
+             model = "multimodal-embedding-001"
+             
+        try:
+            # Prepare contents
+            request_content = content
+            if model == "multimodal-embedding-001":
+                if isinstance(content, list):
+                    # Wrap parts in Content object
+                    request_content = types.Content(parts=content)
+                elif isinstance(content, str):
+                    # Even if text, if targeting multimodal model, wrap it
+                    request_content = types.Content(parts=[types.Part(text=content)])
+
+            response = self.client.models.embed_content(
+                model=model,
+                contents=request_content
+            )
+            return response.embeddings[0].values
+        except Exception as e:
+            logger.error(f"Failed to generate embedding with model {model}: {e}")
+            return None
