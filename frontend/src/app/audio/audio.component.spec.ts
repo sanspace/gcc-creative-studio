@@ -2,6 +2,7 @@ import {
   ComponentFixture,
   TestBed,
   fakeAsync,
+  flush,
   tick,
 } from '@angular/core/testing';
 import { AudioComponent } from './audio.component';
@@ -32,8 +33,15 @@ import { MatDividerModule } from '@angular/material/divider';
 import { LanguageEnum, VoiceEnum } from './audio.constants';
 import { By } from '@angular/platform-browser';
 import { AddVoiceDialogComponent } from '../components/add-voice-dialog/add-voice-dialog.component';
+import { ActivatedRoute } from '@angular/router';
+import { NotificationService } from '../common/services/notification.service';
+import { AppInjector, setAppInjector } from '../app-injector';
+import { Injector } from '@angular/core';
+import { MatMenuModule } from '@angular/material/menu';
+import { NgOptimizedImage } from '@angular/common';
+import { MatTooltipModule } from '@angular/material/tooltip';
 
-fdescribe('AudioComponent', () => {
+describe('AudioComponent', () => {
   let component: AudioComponent;
   let fixture: ComponentFixture<AudioComponent>;
   let audioService: jasmine.SpyObj<AudioService>;
@@ -41,6 +49,7 @@ fdescribe('AudioComponent', () => {
   let snackBar: jasmine.SpyObj<MatSnackBar>;
   let dialog: jasmine.SpyObj<MatDialog>;
   let loader: HarnessLoader;
+  let notificationService: jasmine.SpyObj<NotificationService>;
 
   const mockMediaItem: MediaItem = {
     id: 123,
@@ -62,6 +71,9 @@ fdescribe('AudioComponent', () => {
     );
     const snackBarSpy = jasmine.createSpyObj('MatSnackBar', ['open']);
     const dialogSpy = jasmine.createSpyObj('MatDialog', ['open']);
+    const notificationServiceSpy = jasmine.createSpyObj('NotificationService', [
+      'show',
+    ]);
 
     await TestBed.configureTestingModule({
       declarations: [AudioComponent, MediaLightboxComponent],
@@ -78,15 +90,32 @@ fdescribe('AudioComponent', () => {
         MatIconModule,
         MatProgressSpinnerModule,
         MatDividerModule,
+        NgOptimizedImage,
+        MatMenuModule,
+        MatTooltipModule,
       ],
       providers: [
         { provide: AudioService, useValue: audioServiceSpy },
         { provide: WorkspaceStateService, useValue: workspaceStateServiceSpy },
         { provide: MatSnackBar, useValue: snackBarSpy },
         { provide: MatDialog, useValue: dialogSpy },
+        {
+          provide: ActivatedRoute,
+          useValue: { snapshot: { queryParamMap: { get: () => null } } },
+        },
+        { provide: NotificationService, useValue: notificationServiceSpy },
       ],
-    }).compileComponents();
+    })
+    .overrideComponent(MediaLightboxComponent, {
+      set: {
+        providers: [
+          { provide: NotificationService, useValue: notificationServiceSpy },
+        ],
+      },
+    })
+    .compileComponents();
 
+    setAppInjector(TestBed.inject(Injector));
     fixture = TestBed.createComponent(AudioComponent);
     component = fixture.componentInstance;
     audioService = TestBed.inject(AudioService) as jasmine.SpyObj<AudioService>;
@@ -95,6 +124,9 @@ fdescribe('AudioComponent', () => {
     ) as jasmine.SpyObj<WorkspaceStateService>;
     snackBar = TestBed.inject(MatSnackBar) as jasmine.SpyObj<MatSnackBar>;
     dialog = TestBed.inject(MatDialog) as jasmine.SpyObj<MatDialog>;
+    notificationService = TestBed.inject(
+      NotificationService,
+    ) as jasmine.SpyObj<NotificationService>;
     loader = TestbedHarnessEnvironment.loader(fixture);
     fixture.detectChanges();
   });
@@ -122,11 +154,13 @@ fdescribe('AudioComponent', () => {
       workspaceStateService.getActiveWorkspaceId.and.returnValue(workspaceId);
     });
 
-    it('should set isLoading to true and clear previous mediaItem', () => {
+    it('should set isLoading to true and clear previous mediaItem', async () => {
       audioService.generateAudio.and.returnValue(of(mockMediaItem));
       component.mediaItem = mockMediaItem;
 
       component.generate();
+      fixture.detectChanges();
+      await fixture.whenStable();
 
       expect(component.isLoading).toBeTrue();
       expect(component.mediaItem).toBeNull();
@@ -135,15 +169,12 @@ fdescribe('AudioComponent', () => {
     it('should show error snackbar if no workspace is selected', () => {
       workspaceStateService.getActiveWorkspaceId.and.returnValue(null);
       component.generate();
-      expect(snackBar.open).toHaveBeenCalledWith(
-        'ERROR: Please select a workspace first.',
-        'Workspace',
-        {
-          duration: 5000,
-          horizontalPosition: 'center',
-          verticalPosition: 'bottom',
-          panelClass: ['error-snackbar'],
-        },
+      expect(notificationService.show).toHaveBeenCalledWith(
+        'Please select a workspace first.',
+        'error',
+        'cross-in-circle-white',
+        undefined,
+        20000,
       );
       expect(audioService.generateAudio).not.toHaveBeenCalled();
     });
@@ -201,7 +232,7 @@ fdescribe('AudioComponent', () => {
       component.prompt = 'gemini says hello';
       component.selectedLanguage = LanguageEnum.FR_FR;
       component.selectedVoice = VoiceEnum.CHARON;
-      component.sampleCount = 1; // sampleCount is always passed
+      component.sampleCount = 1;
 
       const expectedRequest: CreateAudioDto = {
         model: GenerationModelEnum.GEMINI_2_5_FLASH_TTS, // Default for gemini-tts
@@ -225,6 +256,7 @@ fdescribe('AudioComponent', () => {
 
       expect(component.isLoading).toBeFalse();
       expect(component.mediaItem).toEqual(mockMediaItem);
+      flush();
     }));
 
     it('should show error snackbar on generation failure and set isLoading to false', fakeAsync(() => {
@@ -234,7 +266,8 @@ fdescribe('AudioComponent', () => {
       tick();
       fixture.detectChanges();
       expect(component.isLoading).toBeFalse();
-      expect(snackBar.open).toHaveBeenCalled();
+      expect(notificationService.show).toHaveBeenCalled();
+      tick(20000);
     }));
   });
 
@@ -286,7 +319,6 @@ fdescribe('AudioComponent', () => {
       expect(component.duration).toBe('3:05');
     });
 
-
     it('onAudioEnded should reset player state', () => {
       component.isPlaying = true;
       component.progressValue = 50;
@@ -331,16 +363,13 @@ fdescribe('AudioComponent', () => {
       expect(component.voices[0].name).toBe(newVoiceName);
       expect(component.voices[0].type).toBe('custom');
       expect(component.selectedVoice).toBe(component.voices[0].id);
-      // expect(snackBar.open).toHaveBeenCalledWith(
-      //   'SUCCESS: Voice cloned successfully!',
-      //   '✅',
-      //   {
-      //     duration: 5000,
-      //     horizontalPosition: 'center',
-      //     verticalPosition: 'bottom',
-      //     panelClass: ['success-snackbar'],
-      //   },
-      // );
+      expect(notificationService.show).toHaveBeenCalledWith(
+        'Voice cloned successfully!',
+        'success',
+        undefined,
+        'check_small',
+        undefined,
+      );
     });
 
     it('should not add a voice if dialog is cancelled', () => {
@@ -355,15 +384,23 @@ fdescribe('AudioComponent', () => {
     });
   });
 
-  // This is a placeholder for the removed closeLightbox test
-  it('should have a test for media item display', () => {
-    // This test now focuses on how media items are handled by the lightbox
+  it('should display the media lightbox when a media item is generated', fakeAsync(() => {
+    const initialLightboxElement = fixture.debugElement.query(
+      By.css('app-media-lightbox'),
+    );
+    expect(initialLightboxElement).toBeFalsy();
+
+    workspaceStateService.getActiveWorkspaceId.and.returnValue(1);
     audioService.generateAudio.and.returnValue(of(mockMediaItem));
     component.generate();
+    tick();
     fixture.detectChanges();
 
-    const lightbox = fixture.debugElement.query(By.directive(MediaLightboxComponent));
-    expect(lightbox).toBeTruthy();
-    expect(lightbox.componentInstance.mediaItem).toEqual(mockMediaItem);
-  });
+    const lightboxElement = fixture.debugElement.query(
+      By.css('app-media-lightbox'),
+    );
+    expect(lightboxElement).toBeTruthy();
+    expect(component.mediaItem).toEqual(mockMediaItem);
+    flush();
+  }));
 });
