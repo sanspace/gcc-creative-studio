@@ -28,6 +28,7 @@ import { MediaLightboxComponent } from '../common/components/media-lightbox/medi
 import { HarnessLoader } from '@angular/cdk/testing';
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { MatButtonHarness } from '@angular/material/button/testing';
+import { MatDividerModule } from '@angular/material/divider';
 import { LanguageEnum, VoiceEnum } from './audio.constants';
 import { By } from '@angular/platform-browser';
 import { AddVoiceDialogComponent } from '../components/add-voice-dialog/add-voice-dialog.component';
@@ -76,6 +77,7 @@ fdescribe('AudioComponent', () => {
         MatSelectModule,
         MatIconModule,
         MatProgressSpinnerModule,
+        MatDividerModule,
       ],
       providers: [
         { provide: AudioService, useValue: audioServiceSpy },
@@ -113,7 +115,7 @@ fdescribe('AudioComponent', () => {
     expect(component.selectedVoice).toBe(VoiceEnum.PUCK);
   });
 
-  fdescribe('generate', () => {
+  describe('generate', () => {
     const workspaceId = 1;
 
     beforeEach(() => {
@@ -236,7 +238,7 @@ fdescribe('AudioComponent', () => {
     }));
   });
 
-  fdescribe('Audio Player', () => {
+  describe('Audio Player', () => {
     let audioEl: HTMLAudioElement;
 
     beforeEach(() => {
@@ -296,7 +298,7 @@ fdescribe('AudioComponent', () => {
     });
   });
 
-  fdescribe('Voice Selection', () => {
+  describe('Voice Selection', () => {
     it('onVoiceSelectionChange should update selectedVoice', () => {
       const event = { value: VoiceEnum.FENRIR } as MatSelectChange;
       component.onVoiceSelectionChange(event);
@@ -312,7 +314,7 @@ fdescribe('AudioComponent', () => {
     });
   });
 
-  fdescribe('AddVoiceDialog', () => {
+  describe('AddVoiceDialog', () => {
     it('should add a new voice and show snackbar when dialog closes with data', () => {
       const newVoiceName = 'My Custom Voice';
       const initialVoiceCount = component.voices.length;
