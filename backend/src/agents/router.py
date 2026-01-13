@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, status
 from src.agents.dto.agent_dto import AgentGenerationRequest, AgentGenerationResponse
 from src.agents.agent_service import AgentService
-from src.auth.auth_service import verify_token
+from src.auth.auth_guard import get_current_user
 from src.users.user_model import UserModel
 
 router = APIRouter(prefix="/api/agents", tags=["Agents"])
@@ -10,7 +10,7 @@ router = APIRouter(prefix="/api/agents", tags=["Agents"])
 async def generate_compliant_media(
     request: AgentGenerationRequest,
     agent_service: AgentService = Depends(),
-    current_user: UserModel = Depends(verify_token)
+    current_user: UserModel = Depends(get_current_user)
 ):
     """
     Triggers the Agentic RAG workflow: Enforce -> Generate -> Validate (Async).

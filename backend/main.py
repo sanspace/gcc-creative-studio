@@ -52,8 +52,6 @@ from src.agents import router as agents_router
 
 # ...
 
-app.include_router(brand_guideline_router)
-app.include_router(agents_router.router)
 
 # Get a logger instance for use in this file. It will inherit the root setup.
 logger = logging.getLogger(__name__)
@@ -176,4 +174,4 @@ app.include_router(media_template_router)
 app.include_router(source_asset_router)
 app.include_router(workspace_router)
 app.include_router(brand_guideline_router)
-app.include_router(agent_router)
+app.include_router(agents_router.router)
