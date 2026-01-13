@@ -179,21 +179,31 @@ async def main():
             # For now, generic prompt.
             
             # Manually invoke Enforcer
+            # Manually invoke Enforcer
             enforcer = agent_service.enforcer_agent
-            enhanced_prompt = await enforcer.enforce_guidelines(
+            enforcement_result = await enforcer.enforce_guidelines(
                 prompt, 
                 workspace_id=None, # Global
             )
             
+            enhanced_prompt = enforcement_result.get("enhanced_prompt", "")
+            reference_uris = enforcement_result.get("reference_image_uris", [])
+            
             logger.info("------------------------------------------------")
             logger.info(f"Original Prompt: {prompt}")
             logger.info(f"Enhanced Prompt: {enhanced_prompt}")
+            logger.info(f"Retrieved Reference Images: {reference_uris}")
             logger.info("------------------------------------------------")
             
             if len(enhanced_prompt) > len(prompt):
                 logger.info("SUCCESS: Prompt was enhanced, likely retrieved guidelines.")
             else:
                 logger.warning("Prompt might not have been enhanced (check logs).")
+
+            if reference_uris:
+                 logger.info(f"SUCCESS: Retrieved {len(reference_uris)} reference images from guidelines.")
+            else:
+                 logger.info("NOTE: No reference images retrieved (expected if PDF has no images or irrelevant query).")
 
 if __name__ == "__main__":
     asyncio.run(main())

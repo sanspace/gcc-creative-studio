@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from src.common.vector_search_service import VectorSearchService
 from src.multimodal.gemini_service import GeminiService
 from src.brand_guidelines.repository.brand_guideline_repository import BrandGuidelineRepository
@@ -17,7 +17,7 @@ def create_search_branding_guidelines_tool(
     Creates a function tool for searching branding guidelines.
     """
     
-    async def search_branding_guidelines(query: str, workspace_id: str = "Global") -> str:
+    async def search_branding_guidelines(query: str, workspace_id: str = "Global") -> Dict[str, Any]:
         """
         Searches for branding guidelines and rules relevant to a query.
         
@@ -26,7 +26,7 @@ def create_search_branding_guidelines_tool(
             workspace_id (str, optional): The ID of the workspace. Defaults to "Global".
 
         Returns:
-            str: Found branding rules.
+            Dict[str, Any]: Contains 'rules_text' (str) and 'reference_image_uris' (List[str]).
         """
         logger.info(f"search_branding_guidelines tool called - Query: {query}, Workspace: {workspace_id}")
         
@@ -40,7 +40,7 @@ def create_search_branding_guidelines_tool(
         sparse_embedding = sparse_service.get_sparse_embedding(query)
         
         if not text_query_embedding and not multimodal_query_embedding:
-            return "Error: Failed to generate embeddings for query."
+            return {"rules_text": "Error: Failed to generate embeddings for query.", "reference_image_uris": []}
 
         # 2. Search
         scope_filter = workspace_id if workspace_id and workspace_id != "Global" else None
@@ -61,7 +61,7 @@ def create_search_branding_guidelines_tool(
 
         if not active_guideline_ids:
             logger.info("search_branding_guidelines - No active guidelines found. Returning empty.")
-            return "No branding guidelines found for this workspace."
+            return {"rules_text": "No branding guidelines found for this workspace.", "reference_image_uris": []}
 
         restricts = [
             {"namespace": "scope", "allow_list": [workspace_id or "Global"]},
@@ -104,7 +104,7 @@ def create_search_branding_guidelines_tool(
         
         # 3. Format results
         relevant_text_chunks = []
-        relevant_images = []
+        relevant_image_uris = []
         guidelines_cache = {}
         
         from src.common.storage_service import GcsService
@@ -156,21 +156,28 @@ def create_search_branding_guidelines_tool(
             elif type_ == "image":
                 if guideline.reference_image_uris and index < len(guideline.reference_image_uris):
                     uri = guideline.reference_image_uris[index]
-                    relevant_images.append(f"- [Source: {guideline.name}] {uri}")
+                    relevant_image_uris.append(uri)
 
-        if not relevant_text_chunks and not relevant_images:
-            return "No relevant branding rules or images found."
+        if not relevant_text_chunks and not relevant_image_uris:
+             return {"rules_text": "No relevant branding rules or images found.", "reference_image_uris": []}
 
         response_parts = []
         if relevant_text_chunks:
             response_parts.append("Found the following relevant branding rules/text:")
             response_parts.extend(relevant_text_chunks)
         
-        if relevant_images:
-            response_parts.append("\nFound the following relevant reference images:")
-            response_parts.extend(relevant_images)
+        # We still return the text representation of images for the prompt context
+        if relevant_image_uris:
+            response_parts.append("\nFound the following relevant reference images (IDs):")
+            for uri in relevant_image_uris:
+                 response_parts.append(f"- {uri}")
 
-        return "\n".join(response_parts)
+        return {
+            "rules_text": "\n".join(response_parts),
+            "reference_image_uris": relevant_image_uris
+        }
+
+    return search_branding_guidelines
 
     return search_branding_guidelines
 

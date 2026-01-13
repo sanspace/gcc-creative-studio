@@ -47,7 +47,18 @@ class BrandingEnforcerAgent:
         
         # 1. Retrieve Guidelines using the tool
         # The tool function is async now
-        guidelines_text = await self.search_tool(user_prompt, str(workspace_id) if workspace_id else "Global")
+        # 1. Retrieve Guidelines using the tool
+        # The tool function is async now and returns a Dict
+        search_result = await self.search_tool(user_prompt, str(workspace_id) if workspace_id else "Global")
+        
+        # Handle the result whether it's the new Dict format or legacy string (safeguard)
+        if isinstance(search_result, dict):
+            guidelines_text = search_result.get("rules_text", "")
+            reference_image_uris = search_result.get("reference_image_uris", [])
+        else:
+            guidelines_text = str(search_result)
+            reference_image_uris = []
+            
         
         # 2. Synthesize Enhanced Prompt using Gemini
         # We construct a specific system instruction for the Enforcer.
@@ -77,5 +88,6 @@ class BrandingEnforcerAgent:
         return {
             "original_prompt": user_prompt,
             "enhanced_prompt": enhanced_prompt,
-            "guidelines_used": guidelines_text
+            "guidelines_used": guidelines_text,
+            "reference_image_uris": reference_image_uris
         }

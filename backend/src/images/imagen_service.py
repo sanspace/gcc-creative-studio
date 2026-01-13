@@ -537,6 +537,16 @@ def _process_image_in_background(
                                     f"Could not find or use generated_input: {gen_input.media_item_id} at index {gen_input.media_index}"
                                 )
 
+                    # NEW: Support raw GCS URIs from Agentic Flow or external sources
+                    if getattr(request_dto, "reference_image_gcs_uris", None):
+                        for uri in request_dto.reference_image_gcs_uris:
+                            reference_images_for_api.append(
+                                types.Image(
+                                    gcs_uri=uri,
+                                    mime_type="image/png" # Default assumption, API often auto-detects or accepts this
+                                )
+                            )
+
                     all_generated_images: List[types.GeneratedImage] = []
 
                     try:

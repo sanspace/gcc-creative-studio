@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Annotated, Literal, Optional
+from typing import Annotated, Literal, Optional, List
 
 from fastapi import Query
 from google.genai import types
@@ -103,6 +103,10 @@ class CreateImagenDto(BaseDto):
     resolution: Literal["1K", "2K", "4K"] = Field(
         default="4K",
         description="Resolution of the generated image.",
+    )
+    reference_image_gcs_uris: Optional[List[str]] = Field(
+        default=None,
+        description="Direct GCS URIs for reference images (bypass SourceAsset).",
     )
 
     @field_validator("prompt")

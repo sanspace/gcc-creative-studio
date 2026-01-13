@@ -1,10 +1,11 @@
 import logging
+from enum import Enum
 from typing import Dict, Any, List
 from fastapi import Depends
 
 from src.agents.enforcer_agent import BrandingEnforcerAgent
 from src.agents.validator_agent import ValidatorAgent
-from src.agents.dto.agent_dto import AgentGenerationRequest, AgentGenerationResponse
+from src.agents.dto.agent_dto import AgentGenerationRequest, AgentGenerationResponse, MediaTypeEnum
 from src.images.dto.create_imagen_dto import CreateImagenDto, AspectRatioEnum
 from src.videos.dto.create_veo_dto import CreateVeoDto
 from src.audios.dto.create_audio_dto import CreateAudioDto
@@ -58,43 +59,41 @@ class AgentService:
         logger.info(f"Enhanced Prompt: {enhanced_prompt}")
 
         # 2. Determine Model
-        model_str = request.generation_model
-        generation_model = None
-        if model_str:
-            try:
-                # Try to match string to Enum
-                for m in GenerationModelEnum:
-                    if m.value == model_str:
-                        generation_model = m
-                        break
-            except Exception:
-                logger.warning(f"Could not map model string '{model_str}' to GenerationModelEnum.")
-
+        # The DTO now parses string inputs to Enums automatically where possible,
+        # or we accept the Enum directly if the frontend sends it.
+        generation_model = request.generation_model
+        
         # 3. Dispatch to appropriate Service
         from concurrent.futures import ThreadPoolExecutor
         executor = ThreadPoolExecutor(max_workers=1) # TODO: Use shared app executor
 
         media_response = None
         
-        if request.media_type == "IMAGE":
+        if request.media_type == MediaTypeEnum.IMAGE:
             # Default to Gemini 2.0 Flash if not specified
             if not generation_model:
-                generation_model = GenerationModelEnum.GEMINI_2_0_FLASH_EXP
+                generation_model = GenerationModelEnum.GEMINI_2_5_FLASH_IMAGE_PREVIEW
                 
-            ar_enum = AspectRatioEnum.RATIO_1_1
-            if request.aspect_ratio:
-                 for ar in AspectRatioEnum:
-                    if ar.value == request.aspect_ratio:
-                        ar_enum = ar
-                        break
+            ar_enum = request.aspect_ratio or AspectRatioEnum.RATIO_1_1
+            
+            # Gather reference images from both the user request and the enforcer agent
+            all_reference_uris = []
+            if request.reference_image_uri:
+                all_reference_uris.append(request.reference_image_uri)
+            
+            # Add reference images retrieved by the Enforcer (e.g. brand assets)
+            enforcer_ref_uris = enforcement_result.get("reference_image_uris", [])
+            if enforcer_ref_uris:
+                all_reference_uris.extend(enforcer_ref_uris)
             
             imagen_dto = CreateImagenDto(
                 prompt=enhanced_prompt,
                 workspace_id=request.workspace_id,
                 generation_model=generation_model,
                 aspect_ratio=ar_enum,
-                number_of_media=request.number_of_images,
-                reference_image_gcs_uris=[request.reference_image_uri] if request.reference_image_uri else None
+                number_of_media=request.number_of_media,
+                style=request.style,
+                reference_image_gcs_uris=all_reference_uris if all_reference_uris else None
             )
             media_response = await self.imagen_service.start_image_generation_job(
                 request_dto=imagen_dto,
@@ -102,18 +101,13 @@ class AgentService:
                 executor=executor
             )
             
-        elif request.media_type == "VIDEO":
+        elif request.media_type == MediaTypeEnum.VIDEO:
             # Default to Veo 2.0
             if not generation_model:
                 generation_model = GenerationModelEnum.VEO_2_0_001
             
             # Map aspect ratio
-            ar_enum = AspectRatioEnum.RATIO_16_9 # Default for video usually
-            if request.aspect_ratio:
-                 for ar in AspectRatioEnum:
-                    if ar.value == request.aspect_ratio:
-                        ar_enum = ar
-                        break
+            ar_enum = request.aspect_ratio or AspectRatioEnum.RATIO_16_9
 
             veo_dto = CreateVeoDto(
                 prompt=enhanced_prompt,
@@ -122,6 +116,7 @@ class AgentService:
                 aspect_ratio=ar_enum,
                 duration_seconds=request.duration_seconds,
                 generate_audio=request.generate_audio,
+                style=request.style,
             )
             media_response = await self.veo_service.start_video_generation_job(
                 request_dto=veo_dto,
@@ -129,11 +124,7 @@ class AgentService:
                 executor=executor
             )
 
-        elif request.media_type == "AUDIO":
-            # AUDIO is usually synchronous or simpler in this app structure, 
-            # but AudioService.generate_audio returns MediaItemResponse.
-            # It might be async/blocking. 
-            
+        elif request.media_type == MediaTypeEnum.AUDIO:
             # Default to Gemini 2.5 Flash TTS
             if not generation_model:
                 generation_model = GenerationModelEnum.GEMINI_2_5_FLASH_TTS
@@ -142,9 +133,9 @@ class AgentService:
                 prompt=enhanced_prompt,
                 workspace_id=request.workspace_id,
                 model=generation_model,
-                voice_name=VoiceEnum.PUCK, # Default
+                voice_name=request.voice_name or VoiceEnum.PUCK,
                 language_code=LanguageEnum.EN_US,
-                sample_count=1 # Default
+                sample_count=request.number_of_media or 1
             )
             # Audio service execution
             media_response = await self.audio_service.generate_audio(
