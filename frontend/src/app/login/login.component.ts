@@ -85,8 +85,8 @@ export class LoginComponent {
             this.handleLoginError(error.message);
           } else {
             this.handleLoginError(
-              error ||
               error.message ||
+              error ||
                 'An unexpected error occurred during sign-in. Please try again.',
             );
           }
@@ -115,8 +115,8 @@ export class LoginComponent {
             this.handleLoginError(error.message);
           } else {
             this.handleLoginError(
-             error ||
              error.message ||
+             error ||
                 'An unexpected error occurred during sign-in. Please try again.',
             );
           }

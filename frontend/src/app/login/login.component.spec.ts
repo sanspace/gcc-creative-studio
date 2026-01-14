@@ -146,6 +146,22 @@ describe('LoginComponent', () => {
           error.message,
         );
       }));
+
+      it('should handle string error from signInWithGoogleFirebase', fakeAsync(() => {
+        const error = 'An unexpected error occurred';
+        authService.signInWithGoogleFirebase.and.returnValue(
+          throwError(() => error),
+        );
+        spyOn(component, 'handleLoginError' as any);
+
+        component.loginWithGoogle();
+        tick();
+
+        expect(component.loader).toBeFalse();
+        expect(component['handleLoginError']).toHaveBeenCalledWith(
+          error,
+        );
+      }));
     });
 
     describe('in non-local environment', () => {
@@ -186,19 +202,35 @@ describe('LoginComponent', () => {
           error.message,
         );
       }));
+
+      it('should handle string error from signInForGoogleIdentityPlatform', fakeAsync(() => {
+        const error = 'An unexpected error occurred';
+        authService.signInForGoogleIdentityPlatform.and.returnValue(
+          throwError(() => error),
+        );
+        spyOn(component, 'handleLoginError' as any);
+
+        component.loginWithGoogle();
+        tick();
+
+        expect(component.loader).toBeFalse();
+        expect(component['handleLoginError']).toHaveBeenCalledWith(
+          error,
+        );
+      }));
     });
   });
 
   describe('handleLoginError', () => {
     it('should hide loader and show snackbar', () => {
       component.loader = true;
-      const errorMessage = 'Test error message';
+      const errorMessage = {message: 'Test error message'};
 
-      component['handleLoginError'](errorMessage);
+      component['handleLoginError'](errorMessage.message);
 
       expect(component.loader).toBeFalse();
       expect(notificationService.show).toHaveBeenCalledWith(
-        errorMessage,
+        errorMessage.message,
         'error',
         'cross-in-circle-white',
         undefined,
