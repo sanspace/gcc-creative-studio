@@ -44,6 +44,8 @@ import {
   ReferenceImage,
   SourceMediaItemLink,
 } from '../common/models/search.model';
+import { AgentService } from '../services/agent.service';
+import { AgentGenerationRequest, MediaTypeEnum } from '../common/models/agent.model';
 import { SourceAssetResponseDto } from '../common/services/source-asset.service';
 import {
   EnrichedSourceAsset,
@@ -254,6 +256,7 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     @Inject(WorkspaceStateService)
     private workspaceStateService: WorkspaceStateService,
     private imageStateService: ImageStateService,
+    private agentService: AgentService,
   ) {
     this.matIconRegistry
       .addSvgIcon(
@@ -368,7 +371,7 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
       this.selectedGenerationModel = this.generationModels.find(
         m => m.value === state.model
       )?.viewValue || this.generationModels[0].viewValue;
-      
+
       this.selectedGenerationModelObject = this.generationModels.find(
         m => m.value === state.model
       ) || this.generationModels[0];
@@ -380,7 +383,7 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
       this.selectedWatermark = this.watermarkOptions.find(
         o => o.value === state.watermark
       )?.viewValue || 'No';
-      
+
       this.service.imagePrompt = state.prompt;
     });
   }
@@ -423,7 +426,7 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     this.negativePhrases = state.negativePrompt
       ? state.negativePrompt.split(', ').filter(Boolean)
       : [];
-    
+
     // Update selected options for UI
     const modelOption = this.generationModels.find(m => m.value === state.model);
     if (modelOption) {
@@ -580,7 +583,7 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     this.selectNumberOfImages(count);
   }
 
-  onClearReferenceImage(data: {index: number, event: Event}) {
+  onClearReferenceImage(data: { index: number, event: Event }) {
     this.clearImage(data.index, data.event as MouseEvent);
   }
 
@@ -709,12 +712,64 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     });
 
     const activeWorkspaceId = this.workspaceStateService.getActiveWorkspaceId();
+
+    if (this.searchRequest.useBrandGuidelines) {
+      if (!activeWorkspaceId) {
+        handleInfoSnackbar(this._snackBar, 'Please select a workspace to use Brand Guidelines.');
+        return;
+      }
+
+      const agentRequest: AgentGenerationRequest = {
+        prompt: this.searchRequest.prompt,
+        workspace_id: parseInt(activeWorkspaceId, 10),
+        media_type: MediaTypeEnum.IMAGE,
+        generation_model: this.searchRequest.generationModel,
+        aspect_ratio: this.searchRequest.aspectRatio,
+        number_of_media: this.searchRequest.numberOfMedia,
+        style: this.searchRequest.style || undefined,
+        reference_image_uri: this.referenceImages[0]?.gcsUri
+      };
+
+      this.isImageGenerating = true;
+      this.imagenDocuments = null;
+
+      this.agentService.generateMedia(agentRequest)
+        .pipe(finalize(() => {
+          // We don't set isLoading=false here immediately because we start polling
+          // But startImagenPolling doesn't control isLoading.
+          // startImagenGeneration sets isLoading=false in finalize.
+          // We should probably set isLoading=false here too as the *request* is done.
+          this.isLoading = false;
+        }))
+        .subscribe({
+          next: (response) => {
+            if (response.generatedAssets && response.generatedAssets.length > 0) {
+              const assetId = response.generatedAssets[0].id;
+              // Track the job using SearchService
+              this.service.trackImageGeneration(assetId);
+              let msg = 'Agentic generation started. Validation in progress...';
+              if (response.enhancedPrompt) {
+                // optionally show the enhanced prompt or just log it
+                console.log('Enhanced Prompt:', response.enhancedPrompt);
+              }
+              handleInfoSnackbar(this._snackBar, msg);
+            }
+          },
+          error: (error) => {
+            this.isImageGenerating = false;
+            handleErrorSnackbar(this._snackBar, error, 'Agent Generation');
+          }
+        });
+
+      return;
+    }
+
     const payload: ImagenRequest = {
       ...this.searchRequest,
       negativePrompt: this.negativePhrases.join(', '),
       sourceMediaItems:
         this.currentMode === 'Ingredients to Image' &&
-        validSourceMediaItems.length
+          validSourceMediaItems.length
           ? validSourceMediaItems
           : undefined,
       sourceAssetIds:
@@ -996,11 +1051,17 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     if (previewUrl) {
+      const isGalleryImage = !('gcsUri' in result);
+      const gcsUri = isGalleryImage
+        ? (result as MediaItemSelection).mediaItem.gcsUris?.[(result as MediaItemSelection).selectedIndex || 0]
+        : (result as SourceAssetResponseDto).gcsUri;
+
       const refImage: ReferenceImage = {
         previewUrl,
         sourceAssetId: sourceAssetId || undefined,
         sourceMediaItem: sourceMediaItem || undefined,
         isNew: true,
+        gcsUri: gcsUri
       };
 
       // Check for duplicates
@@ -1115,7 +1176,7 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
       file: undefined,
       sourceMediaItem: undefined
     }));
-    
+
     if (this.referenceImages.length > 0) {
       this.currentMode = 'Ingredients to Image';
     }

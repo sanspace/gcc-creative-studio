@@ -161,16 +161,33 @@ def create_search_branding_guidelines_tool(
         if not relevant_text_chunks and not relevant_image_uris:
              return {"rules_text": "No relevant branding rules or images found.", "reference_image_uris": []}
 
-        response_parts = []
+        # 4. Enhance with Guideline Summaries
+        # Even if we found specific text chunks, the high-level summaries are critical for the Enforcer.
+        # If we found images but no text chunks, these summaries are the ONLY text context we have.
+        unique_guidelines = guidelines_cache.values()
+        
+        response_parts = [] # Initialize here before usage
+
+        if unique_guidelines:
+            response_parts.append("\n--- BRAND GUIDELINE SUMMARIES ---")
+            for g in unique_guidelines:
+                response_parts.append(f"Guideline: {g.name}")
+                if g.tone_of_voice_summary:
+                    response_parts.append(f"Tone of Voice: {g.tone_of_voice_summary}")
+                if g.visual_style_summary:
+                    response_parts.append(f"Visual Style: {g.visual_style_summary}")
+            response_parts.append("-----------------------------------")
+
+        if not relevant_text_chunks and not unique_guidelines:
+             return {"rules_text": "No relevant branding rules or images found.", "reference_image_uris": []}
+
         if relevant_text_chunks:
-            response_parts.append("Found the following relevant branding rules/text:")
+            response_parts.append("\n--- RELEVANT TEXT EXCERPTS ---")
             response_parts.extend(relevant_text_chunks)
         
-        # We still return the text representation of images for the prompt context
-        if relevant_image_uris:
-            response_parts.append("\nFound the following relevant reference images (IDs):")
-            for uri in relevant_image_uris:
-                 response_parts.append(f"- {uri}")
+        # We NO LONGER return text representation of images in 'rules_text' as it is redundant
+        # and not useful for the text-only Enforcer Agent.
+        # The 'reference_image_uris' list is passed separately to the generation model.
 
         return {
             "rules_text": "\n".join(response_parts),

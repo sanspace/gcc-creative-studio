@@ -46,7 +46,20 @@ class ValidatorAgent:
             "  \"score\": integer (0-100),\n"
             "  \"reasoning\": \"string explanation\",\n"
             "  \"issues\": [\"list\", \"of\", \"issues\"]\n"
-            "}"
+            "}\n\n"
+            "IMPORTANT INSTRUCTIONS FOR 'reasoning':\n"
+            "1.  Use a clean, structured format with sections.\n"
+            "2.  Use standard ASCII formatting for lists (e.g., '•' or '-') and capitalization for headers.\n"
+            "3.  Do NOT use Markdown bolding (like **text**) as it may not render. Use Capitalized Headers instead.\n"
+            "4.  Example Format:\n"
+            "    COMPLIANCE ANALYSIS:\n"
+            "    • Score: 85/100\n"
+            "    • Status: Non-Compliant\n"
+            "\n"
+            "    KEY FINDINGS:\n"
+            "    • The image adheres to the color palette.\n"
+            "    • VIOLATION: The logo placement is incorrect.\n"
+            "5.  Be specific about what is wrong."
         )
         
         # Prepare content parts
@@ -63,7 +76,7 @@ class ValidatorAgent:
                  image_part = types.Part.from_uri(file_uri=asset_uri, mime_type="image/jpeg")
             
             response = self.gemini_service.client.models.generate_content(
-                model=self.gemini_service.rewriter_model, # Reuse default model or config specific validator model
+                model='gemini-2.5-pro', # Explicitly use 2.5 Pro as requested
                 contents=[image_part, prompt],
                 config=types.GenerateContentConfig(
                     response_mime_type="application/json"
@@ -71,7 +84,9 @@ class ValidatorAgent:
             )
             
             if response.text:
+                logger.info(f"Validator Response: {response.text}")
                 return json.loads(response.text)
+            logger.warning("Validator returned empty response.")
             return {"is_compliant": False, "reasoning": "No response from model", "score": 0}
             
         except Exception as e:

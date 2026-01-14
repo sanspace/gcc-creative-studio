@@ -45,6 +45,7 @@ export interface ReferenceImage {
   sourceAssetId?: number;
   sourceMediaItem?: SourceMediaItemLink;
   isNew?: boolean;
+  gcsUri?: string;
 }
 
 export interface ReferenceImageDto {

@@ -34,6 +34,14 @@ import {EventEmitter} from '@angular/core';
 import {Location} from '@angular/common';
 import { handleErrorSnackbar, handleSuccessSnackbar } from '../../../utils/handleMessageSnackbar';
 
+interface ParsedValidation {
+  score: number;
+  status: 'COMPLIANT' | 'NON-COMPLIANT';
+  analysis: string;
+  keyFindings: string[];
+  isCompliant: boolean;
+}
+
 @Component({
   selector: 'app-media-lightbox',
   templateUrl: './media-lightbox.component.html',
@@ -81,6 +89,72 @@ export class MediaLightboxComponent
   currentTime = '0:00';
   duration = '0:00';
   progressValue = 0;
+
+  showCritique = false;
+
+  toggleCritique(): void {
+    this.showCritique = !this.showCritique;
+  }
+
+  get parsedValidation(): ParsedValidation | null {
+    if (!this.mediaItem?.rawData?.['validations'] || !this.mediaItem.rawData['validations'][this.selectedIndex]) {
+      // Fallback for legacy data
+      if (this.mediaItem?.rawData?.['validation']) {
+        return this.parseValidation(
+          this.mediaItem.critique || '',
+          this.mediaItem.rawData['validation'].score,
+          this.mediaItem.rawData['validation'].is_compliant
+        );
+      }
+      return null;
+    }
+
+    const val = this.mediaItem.rawData['validations'][this.selectedIndex];
+    return this.parseValidation(val.reasoning, val.score, val.is_compliant);
+  }
+
+  private parseValidation(reasoning: string, score: number, isCompliant: boolean): ParsedValidation {
+    // defaults
+    const result: ParsedValidation = {
+      score: score || 0,
+      status: isCompliant ? 'COMPLIANT' : 'NON-COMPLIANT',
+      analysis: 'No detailed analysis available.',
+      keyFindings: [],
+      isCompliant: !!isCompliant
+    };
+
+    if (!reasoning) return result;
+
+    // improved parsing for distinct sections
+    // Expecting "COMPLIANCE ANALYSIS:" and "KEY FINDINGS:"
+    const analysisMatch = reasoning.match(/COMPLIANCE ANALYSIS:\s*([\s\S]*?)(?=KEY FINDINGS:|$)/i);
+    const findingsMatch = reasoning.match(/KEY FINDINGS:\s*([\s\S]*?)$/i);
+
+    if (analysisMatch && analysisMatch[1]) {
+      // clean up the analysis text, remove bullet points if they are just summarizing status/score again
+      let text = analysisMatch[1].trim();
+      // Remove lines that just say "Score: ..." or "Status: ..." as we display those separately
+      text = text.replace(/^•?\s*Score:.*\n?/gim, '');
+      text = text.replace(/^•?\s*Status:.*\n?/gim, '');
+      result.analysis = text.trim();
+    } else {
+      // if no header, treat mostly as analysis
+      result.analysis = reasoning;
+    }
+
+    if (findingsMatch && findingsMatch[1]) {
+      const findingsText = findingsMatch[1].trim();
+      // split by bullets
+      result.keyFindings = findingsText
+        .split(/\n•|\n-|\n\*/) // alignment with typical markdown bullets
+        .map(f => f.trim())
+        .filter(f => f.length > 0)
+        // cleanup leading bullet chars if split didn't catch them (first item)
+        .map(f => f.replace(/^[•\-*]\s*/, ''));
+    }
+
+    return result;
+  }
 
   constructor(
     private clipboard: Clipboard,

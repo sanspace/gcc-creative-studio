@@ -56,7 +56,8 @@ class AgentService:
             workspace_id=request.workspace_id
         )
         enhanced_prompt = enforcement_result["enhanced_prompt"]
-        logger.info(f"Enhanced Prompt: {enhanced_prompt}")
+        logger.info(f"Enforcement Result: {enforcement_result}")
+        # logger.info(f"Enhanced Prompt: {enhanced_prompt}")
 
         # 2. Determine Model
         # The DTO now parses string inputs to Enums automatically where possible,
@@ -178,12 +179,46 @@ class AgentService:
                                  
                              if item.status == JobStatusEnum.COMPLETED:
                                  logger.info(f"Generation completed for {mid}. Triggering validation.")
-                                 await self.validator_agent.validate_batch(
+                                 validation_results = await self.validator_agent.validate_batch(
                                      media_item_ids=[mid],
                                      guidelines_text=guidelines,
                                      original_prompt=orig_prompt,
                                      media_repo=service_instance.media_repo
                                  )
+                                 
+                                 # Ensure results are sorted by URI to match the index order in gcs_uris
+                                 # This assumes item.gcs_uris order is consistent (it is a List)
+                                 # create a map for O(1) lookup
+                                 res_map = {r['uri']: r for r in validation_results}
+                                 in_order_results = []
+                                 for uri in item.gcs_uris:
+                                     if uri in res_map:
+                                         in_order_results.append(res_map[uri])
+                                     else:
+                                         # Should not happen if validate_batch covers all
+                                         in_order_results.append({"validation": {"is_compliant": False, "reasoning": "Validation missing", "score": 0}})
+                                 
+                                 # Persist validation results
+                                 # Persist validation results
+                                 all_validations = []
+                                 combined_critique = []
+                                 
+                                 for res in in_order_results:
+                                     validation_data = res.get("validation", {})
+                                     all_validations.append(validation_data)
+                                     # Optional: Combine critiques or just use the first/generic one
+                                     # For now, let's append them for observability or pick the first failed one?
+                                     # Combining is safer for visibility.
+                                     score = validation_data.get('score', 0)
+                                     status = "COMPLIANT" if validation_data.get('is_compliant') else "NON-COMPLIANT"
+                                     combined_critique.append(f"[Image {len(all_validations)}] {status} (Score: {score}): {validation_data.get('reasoning', '')}")
+
+                                 update_payload = {
+                                     "raw_data": {"validations": all_validations},
+                                     "critique": "\n\n".join(combined_critique)
+                                 }
+                                 await service_instance.media_repo.update(mid, update_payload)
+                                 logger.info(f"Validation saved for {mid}. Validated {len(all_validations)} images.")
                                  return
                                  
                              if item.status == JobStatusEnum.FAILED:

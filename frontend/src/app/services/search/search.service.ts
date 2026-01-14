@@ -30,6 +30,7 @@ import {
   takeWhile,
   tap,
   timer,
+  retry,
 } from 'rxjs';
 import {environment} from '../../../environments/environment';
 import {ImagenRequest, VeoRequest} from '../../common/models/search.model';
@@ -104,12 +105,60 @@ export class SearchService {
     this.activeImageJob.next(null);
   }
 
+  /**
+   * Tracks an existing image generation job (e.g. triggered by AgentService).
+   */
+  trackImageGeneration(mediaId: number) {
+    // 1. Try to fetch the item immediately with retries
+    this.getImagenMediaItem(mediaId)
+      .pipe(
+        // Retry 3 times with a small delay if the item isn't found immediately (e.g. DB replication lag)
+        // or if there are transient network errors.
+        // In a real app we might use retryWhen or timer, but simple retry is a good start.
+        // Note: 'retry' in RxJS retries immediately. For delay we'd need retryWhen/delay.
+        // For now, let's just assume we want to start polling regardless of the first fetch result.
+        catchError(err => {
+          console.warn('Initial fetch for tracking failed, starting polling anyway.', err);
+          // If initial fetch fails, we still want to start polling because the item MIGHT exist later
+          // or we might just be hitting a temporary glitch.
+          // We return EMPTY so this subscription doesn't error out, but we proceed to start polling.
+          return EMPTY;
+        })
+      )
+      .subscribe({
+        next: (item) => {
+          this.activeImageJob.next(item);
+          // Start polling after successful fetch
+          this.startImagenPolling(mediaId);
+        },
+        complete: () => {
+          // If the initial fetch failed (checked via catchError returning EMPTY),
+          // we should still start polling to be safe.
+          // However, if we successfully got 'next', we already started polling.
+          // To avoid double-starting, we can check if we have an active polling sub?
+          // Actually, startImagenPolling handles cleanup. It's safe to call.
+          this.startImagenPolling(mediaId);
+        }
+      });
+  }
+
   private startImagenPolling(mediaId: number): void {
     this.stopImagenPolling();
     this.imagePollingSubscription = timer(2000, 5000) // Start after 2s, then every 5s
       .pipe(
-        switchMap(() => this.getImagenMediaItem(mediaId)),
+        switchMap(() =>
+          this.getImagenMediaItem(mediaId).pipe(
+            // Catch errors on the *inner* observable so the timer doesn't die
+            catchError(err => {
+              console.error('Polling request failed', err);
+              // Return null or a dummy object so the stream continues
+              return EMPTY;
+            })
+          )
+        ),
         tap(latestItem => {
+          if (!latestItem) return; // Skip if we got EMPTY
+
           this.activeImageJob.next(latestItem);
           if (
             latestItem.status === JobStatus.COMPLETED ||
@@ -128,7 +177,8 @@ export class SearchService {
           }
         }),
         catchError(err => {
-          console.error('Polling failed', err);
+          // This catches errors in the timer itself or elsewhere not caught by inner catchError
+          console.error('Critical polling failure', err);
           this.stopImagenPolling();
           return EMPTY;
         }),

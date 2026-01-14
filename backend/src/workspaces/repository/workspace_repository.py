@@ -160,7 +160,15 @@ class WorkspaceRepository(BaseRepository[Workspace, WorkspaceModel]):
             "owner_id": workspace.owner_id,
             "scope": workspace.scope,
             "created_at": workspace.created_at,
-            "updated_at": workspace.updated_at
+            "updated_at": workspace.updated_at,
+            "members": [
+                {
+                    "user_id": m.user_id,
+                    "email": m.email,
+                    "role": m.role
+                }
+                for m in workspace.members
+            ]
         }
         
         return self.schema.model_validate(workspace_dict)

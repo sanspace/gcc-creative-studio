@@ -56,6 +56,7 @@ class WorkspaceMember(BaseModel):
     model_config = ConfigDict(
         populate_by_name=True,
         alias_generator=to_camel,
+        from_attributes=True,
     )
 
 
@@ -131,3 +132,12 @@ class WorkspaceModel(BaseDocument):
         default=WorkspaceScopeEnum.PRIVATE,
         description="Public workspaces are visible to all users. Private ones are visible only to members.",
     )
+    members: List[WorkspaceMember] = Field(
+        default_factory=list,
+        description="List of members with access to this workspace."
+    )
+
+    @property
+    def member_ids(self) -> List[int]:
+        """Returns a list of User IDs for all members."""
+        return [m.user_id for m in self.members]

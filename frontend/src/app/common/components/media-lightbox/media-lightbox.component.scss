@@ -348,3 +348,224 @@
         }
     }
 }
+
+// ... existing styles ...
+
+.critique-overlay {
+  position: absolute;
+  bottom: 80px;
+  right: 20px;
+  width: 420px;
+  /* Slightly wider for better text layout */
+  max-width: 90vw;
+  max-height: 80vh;
+  /* Prevent overflow on small screens */
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+
+  /* Glassmorphism Premium */
+  background: rgba(20, 20, 20, 0.85);
+  /* Darker base */
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06),
+    0 20px 25px -5px rgba(0, 0, 0, 0.5);
+  /* Deep shadow */
+
+  z-index: 1000;
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  /* Professional easing */
+  color: #f1f5f9;
+
+  &.compliant {
+    border-color: rgba(76, 175, 80, 0.3);
+    background: linear-gradient(135deg, rgba(20, 20, 20, 0.9) 0%, rgba(20, 35, 20, 0.9) 100%);
+  }
+
+  .report-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.25rem 1.5rem;
+    background: rgba(255, 255, 255, 0.03);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+
+    .header-title {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+
+      mat-icon {
+        color: #ef4444;
+        /* Default Non-Compliant Red */
+        font-size: 24px;
+        width: 24px;
+        height: 24px;
+      }
+
+      h3 {
+        margin: 0;
+        font-size: 1.1rem;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        color: #fff;
+      }
+    }
+
+    /* Override icon color when compliant */
+    .critique-overlay.compliant & mat-icon {
+      color: #4ade80;
+      /* Bright Green */
+    }
+
+    /* Since we can't select parent based on child, we need to use the parent class on the overlay div. 
+       Fixed logic in template: [class.compliant]="parsedValidation.isCompliant" on the overlay itself. 
+       So .critique-overlay.compliant .header-title mat-icon works. 
+    */
+
+    .score-indicator {
+      display: flex;
+      align-items: baseline;
+
+      .score-value {
+        font-size: 1.75rem;
+        font-weight: 800;
+        line-height: 1;
+        color: #ef4444;
+        /* Default Red */
+      }
+
+      .score-max {
+        font-size: 0.875rem;
+        color: rgba(255, 255, 255, 0.5);
+        margin-left: 2px;
+        font-weight: 500;
+      }
+
+      &.compliant .score-value {
+        color: #4ade80;
+        /* Green */
+      }
+    }
+  }
+
+  .report-body {
+    padding: 1.5rem;
+    overflow-y: auto;
+    flex-grow: 1;
+
+    /* Scrollbar styling */
+    &::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background-color: rgba(255, 255, 255, 0.2);
+      border-radius: 20px;
+    }
+  }
+
+  .section {
+    margin-bottom: 1.5rem;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+
+    .section-title {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: rgba(255, 255, 255, 0.5);
+      margin: 0 0 0.5rem 0;
+      font-weight: 700;
+    }
+  }
+
+  .analysis-text {
+    font-size: 0.925rem;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.9);
+    white-space: pre-wrap;
+    /* Preserve formatting */
+  }
+
+  .findings-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+
+    li {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+      font-size: 0.9rem;
+      line-height: 1.5;
+      color: rgba(255, 255, 255, 0.85);
+
+      .bullet-icon {
+        flex-shrink: 0;
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+        color: rgba(255, 255, 255, 0.4);
+        margin-top: 2px;
+      }
+    }
+  }
+
+  .report-footer {
+    padding: 1rem 1.5rem;
+    background: rgba(0, 0, 0, 0.2);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+
+    .status-badge {
+      display: inline-block;
+      padding: 0.35rem 0.75rem;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+
+      background: rgba(239, 68, 68, 0.15);
+      /* Red tint */
+      color: #fca5a5;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+
+      &.compliant {
+        background: rgba(74, 222, 128, 0.15);
+        /* Green tint */
+        color: #86efac;
+        border: 1px solid rgba(74, 222, 128, 0.3);
+      }
+    }
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.action-button.active {
+  background-color: #5a5a5a;
+  border-color: #999;
+}

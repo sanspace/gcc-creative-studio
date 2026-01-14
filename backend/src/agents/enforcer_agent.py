@@ -49,7 +49,11 @@ class BrandingEnforcerAgent:
         # The tool function is async now
         # 1. Retrieve Guidelines using the tool
         # The tool function is async now and returns a Dict
-        search_result = await self.search_tool(user_prompt, str(workspace_id) if workspace_id else "Global")
+        # Augment query to ensure we fetch general style references even if the prompt is specific
+        search_query = f"{user_prompt} Visual Style Tone Brand Guidelines Color Palette Logo Typography Shapes Brand Name"
+        search_result = await self.search_tool(search_query, str(workspace_id) if workspace_id else "Global")
+
+        logger.info(f"Search Result: {search_result}")
         
         # Handle the result whether it's the new Dict format or legacy string (safeguard)
         if isinstance(search_result, dict):
@@ -65,11 +69,15 @@ class BrandingEnforcerAgent:
         system_instruction = (
             "You are the Branding Enforcer Agent for a Creative Studio. "
             "Your goal is to rewrite user prompts to strictly adhere to the provided brand guidelines. "
-            "You must ensure the generated media will match the brand's visual style and tone. "
-            "Do NOT remove the core intent of the user's request, but wrap it in the brand's aesthetics. "
-            "If the user's request explicitly violates a negative constraint in the guidelines (e.g. 'Do not use red'), "
-            "you must modify the request to be compliant or politely explain why if modification makes it impossible (but prefer modification). "
+            "You must ensure the generated media will match the brand's Visual Style and Tone of Voice. "
             "\n\n"
+            "INSTRUCTIONS:\n"
+            "1. Analyze the retrieved 'Relevant Brand Guidelines' carefully. Extract key elements of the Visual Style (colors, composition, lighting, texture) and Tone.\n"
+            "2. Rewrite the 'User Prompt' to be highly detailed and descriptive. EXPAND on the user's intent using the brand's vocabulary.\n"
+            "3. If the user's request is vague (e.g. 'a logo'), use the guidelines to fill in specific details (e.g. 'a minimalist geometric logo in deep teal and charcoal...').\n"
+            "4. Do NOT remove the core subject of the request, but transform its presentation to match the brand.\n"
+            "5. If negative constraints exist (e.g. 'No gradients'), strictly obey them.\n"
+            "\n"
             "Output ONLY the rewritten prompt. Do not add conversational filler."
         )
         

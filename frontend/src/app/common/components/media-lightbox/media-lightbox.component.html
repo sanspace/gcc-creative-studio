@@ -184,7 +184,51 @@
         <mat-icon>info_outline</mat-icon>
         <span>See more info</span>
       </button>
+<button *ngIf="mediaItem?.critique" type="button" class="action-button" [class.active]="showCritique"
+  (click)="toggleCritique()" title="Brand Info">
+  <mat-icon>policy</mat-icon>
+  <span>Brand Info</span>
+</button>
+</div>
+
+<!-- Critique Overlay -->
+<div *ngIf="showCritique && parsedValidation" class="critique-overlay" [class.compliant]="parsedValidation.isCompliant">
+
+  <div class="report-header">
+    <div class="header-title">
+      <mat-icon>{{ parsedValidation.isCompliant ? 'verified' : 'gpp_bad' }}</mat-icon>
+      <h3>Brand Compliance Report</h3>
     </div>
+    <div class="score-indicator" [class.compliant]="parsedValidation.isCompliant">
+      <span class="score-value">{{ parsedValidation.score }}</span>
+      <span class="score-max">/100</span>
+    </div>
+  </div>
+
+  <div class="report-body">
+    <div class="section analysis-section">
+      <h4 class="section-title">Compliance Analysis</h4>
+      <p class="analysis-text">{{ parsedValidation.analysis }}</p>
+    </div>
+
+    <div class="section findings-section" *ngIf="parsedValidation.keyFindings?.length">
+      <h4 class="section-title">Key Findings</h4>
+      <ul class="findings-list">
+        <li *ngFor="let finding of parsedValidation.keyFindings">
+          <mat-icon class="bullet-icon">arrow_right</mat-icon>
+          <span>{{ finding }}</span>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="report-footer">
+    <div class="status-badge" [class.compliant]="parsedValidation.isCompliant">
+      {{ parsedValidation.status }}
+    </div>
+  </div>
+
+</div>
 
     <button
       *ngIf="isVideo"
