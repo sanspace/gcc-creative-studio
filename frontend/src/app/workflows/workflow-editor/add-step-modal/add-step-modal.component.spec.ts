@@ -14,7 +14,11 @@
  * limitations under the License.
  */
 
+import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
+import { ReactiveFormsModule } from '@angular/forms';
+import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { MaterialModule } from '../../../common/material.module';
 
 import { AddStepModalComponent } from './add-step-modal.component';
 
@@ -24,7 +28,12 @@ describe('AddStepModalComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [AddStepModalComponent]
+      declarations: [AddStepModalComponent],
+      imports: [ReactiveFormsModule, HttpClientTestingModule, MaterialModule],
+      providers: [
+        { provide: MatDialogRef, useValue: {} },
+        { provide: MAT_DIALOG_DATA, useValue: {} }
+      ]
     })
     .compileComponents();
 

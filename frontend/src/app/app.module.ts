@@ -53,7 +53,7 @@ import {
 import { AngularFireAuthModule } from '@angular/fire/compat/auth';
 import { AngularFireDatabaseModule } from '@angular/fire/compat/database';
 import { AngularFirestoreModule } from '@angular/fire/compat/firestore';
-import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { ReactiveFormsModule } from '@angular/forms';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatCardModule } from '@angular/material/card';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -145,23 +145,9 @@ import { WorkbenchComponent } from './workbench/workbench.component';
     MatIconModule,
     MatStepperModule,
     MatFormFieldModule,
-    MatInputModule,
-    ReactiveFormsModule,
-    BrowserAnimationsModule,
-    MatSelectModule,
-    MatProgressSpinnerModule,
-    MatMenuModule,
-    MatCheckboxModule,
-    MatCardModule,
-    MatTableModule,
-    FormsModule,
-    ScrollingModule,
-    MatProgressBarModule,
-    MatExpansionModule,
-    MatTabsModule,
-    MatDialogModule,
-    SharedModule,
-    MatSlideToggleModule,
+        MatInputModule,
+        MatSlideToggleModule,
+        ReactiveFormsModule,
     MatButtonToggleModule,
     ImageCropperComponent,
     MatButtonToggleModule,

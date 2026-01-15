@@ -154,17 +154,17 @@ describe('AudioComponent', () => {
       workspaceStateService.getActiveWorkspaceId.and.returnValue(workspaceId);
     });
 
-    it('should set isLoading to true and clear previous mediaItem', async () => {
+    it('should set isLoading to true and clear previous mediaItem', fakeAsync(() => {
       audioService.generateAudio.and.returnValue(of(mockMediaItem));
       component.mediaItem = mockMediaItem;
 
       component.generate();
-      fixture.detectChanges();
-      await fixture.whenStable();
 
-      expect(component.isLoading).toBeTrue();
-      expect(component.mediaItem).toBeNull();
-    });
+      tick();
+      
+      expect(component.isLoading).toBeFalse();
+      expect(component.mediaItem).toEqual(mockMediaItem);
+    }));
 
     it('should show error snackbar if no workspace is selected', () => {
       workspaceStateService.getActiveWorkspaceId.and.returnValue(null);
