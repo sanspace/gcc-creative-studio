@@ -104,12 +104,13 @@
                     </div>
                   
                   <!-- Add Linked -->
-                    <div 
+                    <button 
+                        type="button"
                         class="h-10 w-10 flex flex-col items-center justify-center cursor-pointer rounded-lg border-2 border-dashed border-neutral-700 hover:border-blue-500/50 hover:bg-blue-900/10 transition-colors gap-1"
                         [matMenuTriggerFor]="outputMenu"
                         matTooltip="Add Output Reference">
                         <mat-icon class="text-blue-400 !w-5 !h-5 !text-xl">link</mat-icon>
-                    </div>
+                    </button>
                   
                   <mat-menu #outputMenu="matMenu">
                       <button mat-menu-item *ngFor="let out of compatibleOutputs[input.name]" (click)="addLinkedOutput(input.name, out)">
@@ -184,8 +185,7 @@
           </div>
           <!-- / Inputs image -->
           <mat-form-field *ngIf="inputModes[input.name] === 'linked'" appearance="outline" class="value-input">
-            <mat-select [formControlName]="input.name" [compareWith]="compareFn">
-              <mat-option *ngFor="let out of compatibleOutputs[input.name]" [value]="out.value">
+                               <mat-select [formControlName]="input.name" [compareWith]="compareFn">              <mat-option *ngFor="let out of compatibleOutputs[input.name]" [value]="out.value">
                 {{ out.label }}
               </mat-option>
             </mat-select>

@@ -23,9 +23,9 @@ import { MatChipsModule } from '@angular/material/chips';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { MatIconModule } from '@angular/material/icon';
-import { MatMenuModule } from '@angular/material/menu';
+import { MatMenuModule, MatMenu } from '@angular/material/menu';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { MatSelectModule } from '@angular/material/select';
+import { MatSelectModule, MatOption, MatSelect } from '@angular/material/select';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -135,29 +135,43 @@ import { WorkbenchComponent } from './workbench/workbench.component';
   imports: [
     BrowserModule,
     AppRoutingModule,
+    BrowserAnimationsModule,
     NgOptimizedImage,
-    MatTooltipModule,
-    MatToolbarModule,
-    MatDividerModule,
-    MatButtonModule,
-    MatChipsModule,
-    MatRadioModule,
-    MatIconModule,
-    MatStepperModule,
-    MatFormFieldModule,
-        MatInputModule,
-        MatSlideToggleModule,
-        ReactiveFormsModule,
-    MatButtonToggleModule,
+    ReactiveFormsModule,
+    ClipboardModule,
+    DragDropModule,
+    ScrollingModule,
     ImageCropperComponent,
-    MatButtonToggleModule,
-    MatSliderModule,
     NotificationContainerComponent,
     FlowPromptBoxComponent,
-    DragDropModule,
+    SharedModule,
+
+    // Explicitly listing all relevant Angular Material modules
+    MatButtonModule,
+    MatChipsModule,
+    MatDividerModule,
+    MatExpansionModule,
+    MatIconModule,
+    MatMenuModule,
+    MatProgressSpinnerModule,
+    MatSelectModule,
+    MatTabsModule,
+    MatToolbarModule,
+    MatTooltipModule,
+    MatButtonToggleModule,
+    MatCardModule,
+    MatCheckboxModule,
+    MatDialogModule,
+    MatFormFieldModule,
+    MatInputModule,
     MatPaginatorModule,
-    ClipboardModule
-  ],
+    MatProgressBarModule,
+    MatRadioModule,
+    MatSlideToggleModule,
+    MatSliderModule,
+    MatStepperModule,
+    MatTableModule,
+],
   providers: [
     provideClientHydration(),
     provideHttpClient(withInterceptorsFromDi()),
