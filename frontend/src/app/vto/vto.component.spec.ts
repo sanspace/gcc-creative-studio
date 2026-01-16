@@ -14,97 +14,434 @@
  * limitations under the License.
  */
 
-import { HttpClientTestingModule } from '@angular/common/http/testing';
-import {ComponentFixture, TestBed} from '@angular/core/testing';
-import {BrowserAnimationsModule} from '@angular/platform-browser/animations';
-
-
+import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
+import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
+import { NoopAnimationsModule } from '@angular/platform-browser/animations';
+import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { of, BehaviorSubject, throwError } from 'rxjs';
+import { MatDialog, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 
 import { VtoComponent } from './vto.component';
+import { VtoStateService } from '../services/vto-state.service';
+import { SearchService } from '../services/search/search.service';
+import { VtoState } from '../services/vto-state.service';
+import { MediaItem, JobStatus } from '../common/models/media-item.model';
+import { ImageSelectorComponent } from '../common/components/image-selector/image-selector.component';
+import { SourceAssetResponseDto, SourceAssetService } from '../common/services/source-asset.service';
+import { WorkspaceStateService } from '../services/workspace/workspace-state.service';
+
 
 import { MatIconModule } from '@angular/material/icon';
-
-import { MatIconTestingModule } from '@angular/material/icon/testing';
-
 import { MatStepperModule } from '@angular/material/stepper';
-
 import { MatRadioModule } from '@angular/material/radio';
-
-import { ReactiveFormsModule, FormsModule } from '@angular/forms';
-
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner'; // Direct import for spinner
-
-import { MatDialogModule } from '@angular/material/dialog'; // Direct import for dialog
-
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatCardModule } from '@angular/material/card';
+import { environment } from '../../environments/environment';
 
-describe('VtoComponent', () => {
+// Mock data
+const mockVtoAssetsResponse = {
+  male_models: [{ id: 1, originalFilename: 'male_model.png', presignedUrl: 'gs://male_model.png', asset_type: 'vto_person_male' }],
+  female_models: [{ id: 2, originalFilename: 'female_model.png', presignedUrl: 'gs://female_model.png', asset_type: 'vto_person_female' }],
+  tops: [{ id: 3, originalFilename: 'top.png', presignedUrl: 'gs://top.png', asset_type: 'vto_top' }],
+  bottoms: [{ id: 4, originalFilename: 'bottom.png', presignedUrl: 'gs://bottom.png', asset_type: 'vto_bottom' }],
+  dresses: [{ id: 5, originalFilename: 'dress.png', presignedUrl: 'gs://dress.png', asset_type: 'vto_dress' }],
+  shoes: [{ id: 6, originalFilename: 'shoe.png', presignedUrl: 'gs://shoe.png', asset_type: 'vto_shoe' }],
+};
 
+const mockVtoJob: MediaItem = {
+  id: 123,
+  status: JobStatus.PROCESSING,
+  originalPrompt: '',
+  presignedUrls: [],
+  updatedAt: '',
+  createdAt: '',
+  gcsUris: []
+};
 
-
+fdescribe('VtoComponent', () => {
   let component: VtoComponent;
-
-
-
   let fixture: ComponentFixture<VtoComponent>;
-
-
+  let httpMock: HttpTestingController;
+  let vtoStateService: VtoStateService;
+  let searchService: SearchService;
+  let snackBar: MatSnackBar;
+  let dialog: MatDialog;
+  let sourceAssetService: SourceAssetService;
+  let workspaceStateService: WorkspaceStateService;
+  let activeVtoJobSubject: BehaviorSubject<MediaItem | null>;
 
   beforeEach(async () => {
+    activeVtoJobSubject = new BehaviorSubject<MediaItem | null>(null);
 
+    const searchServiceMock = {
+      activeVtoJob$: activeVtoJobSubject.asObservable(),
+      startVtoGeneration: jasmine.createSpy('startVtoGeneration').and.returnValue(of(mockVtoJob)),
+      clearActiveVtoJob: jasmine.createSpy('clearActiveVtoJob'),
+    };
 
+    const sourceAssetServiceMock = {
+        uploadAsset: jasmine.createSpy('uploadAsset').and.returnValue(of({id: 123, originalFilename: 'new_asset.png', presignedUrl: 'gs://new_asset.png'} as SourceAssetResponseDto)),
+    };
+
+    const workspaceStateServiceMock = {
+        getActiveWorkspaceId: jasmine.createSpy('getActiveWorkspaceId').and.returnValue('test-workspace'),
+    };
 
     await TestBed.configureTestingModule({
-
-
-
       declarations: [VtoComponent],
-
-
-
       imports: [
-
         HttpClientTestingModule,
-
+        NoopAnimationsModule,
         MatIconModule,
-
-        MatIconTestingModule,
-
         MatStepperModule,
-
         MatRadioModule,
-
-        ReactiveFormsModule,
-
         FormsModule,
-
-        MatProgressSpinnerModule, // Direct import
-
-        MatDialogModule, // Direct import
-
-                MatCardModule, // Explicitly include MatCardModule
-
-                BrowserAnimationsModule,
-
-              ],
-
-
-
+        ReactiveFormsModule,
+        MatProgressSpinnerModule,
+        MatDialogModule,
+        MatCardModule,
+      ],
+      providers: [
+        VtoStateService,
+        { provide: SearchService, useValue: searchServiceMock },
+        { provide: SourceAssetService, useValue: sourceAssetServiceMock },
+        { provide: WorkspaceStateService, useValue: workspaceStateServiceMock },
+        { provide: MatSnackBar, useValue: { open: jasmine.createSpy('open') } },
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            snapshot: {
+                paramMap: convertToParamMap({}),
+                queryParamMap: convertToParamMap({}),
+            },
+            queryParamMap: of(convertToParamMap({})),
+            getCurrentNavigation: () => ({
+                extras: {
+                    state: undefined
+                }
+            })
+          },
+        },
+      ],
     }).compileComponents();
 
-
-
     fixture = TestBed.createComponent(VtoComponent);
-
     component = fixture.componentInstance;
+    httpMock = TestBed.inject(HttpTestingController);
+    vtoStateService = TestBed.inject(VtoStateService);
+    searchService = TestBed.inject(SearchService);
+    snackBar = TestBed.inject(MatSnackBar);
+    dialog = TestBed.inject(MatDialog);
+    sourceAssetService = TestBed.inject(SourceAssetService);
+    workspaceStateService = TestBed.inject(WorkspaceStateService);
+  });
 
+  afterEach(() => {
+    httpMock.verify();
+  });
+
+  it('should create', () => {
     fixture.detectChanges();
+    expect(component).toBeTruthy();
+  });
 
+  fdescribe('Initialization', () => {
+    it('should load VTO assets and restore state on init', () => {
+        spyOn<any>(component, 'loadVtoAssets');
+        spyOn<any>(component, 'restoreVtoState');
+
+        fixture.detectChanges(); // ngOnInit
+
+        expect(component['loadVtoAssets']).toHaveBeenCalled();
+        expect(component['restoreVtoState']).toHaveBeenCalled();
+    });
+
+    it('should subscribe to activeVtoJob$ and update imagenDocuments', () => {
+        fixture.detectChanges(); // ngOnInit
+        const completedJob = { ...mockVtoJob, status: JobStatus.COMPLETED };
+        activeVtoJobSubject.next(completedJob);
+        expect(component.imagenDocuments).toEqual(completedJob);
+    });
+
+    it('should clear VTO state if job is null', () => {
+        spyOn<any>(component, 'clearVtoState');
+        fixture.detectChanges(); // ngOnInit
+        activeVtoJobSubject.next(null);
+        expect(component['clearVtoState']).toHaveBeenCalled();
+    });
+  });
+
+  fdescribe('Form Group and Value Changes', () => {
+    beforeEach(() => {
+        fixture.detectChanges();
+        const req = httpMock.expectOne(`${environment.backendURL}/source_assets/vto-assets`);
+        req.flush(mockVtoAssetsResponse);
+    });
+
+    it('should switch modelsToShow when modelType changes', () => {
+        component.firstFormGroup.get('modelType')?.setValue('male');
+        fixture.detectChanges();
+        expect(component.modelsToShow).toEqual(component.maleModels);
+
+        component.firstFormGroup.get('modelType')?.setValue('female');
+        fixture.detectChanges();
+        expect(component.modelsToShow).toEqual(component.femaleModels);
+    });
+
+    it('should reset imagenDocuments and previousResult when model changes', () => {
+        component.imagenDocuments = mockVtoJob;
+        component.previousResult = mockVtoJob;
+
+        component.firstFormGroup.get('model')?.setValue({id: 'test'});
+        fixture.detectChanges();
+
+        expect(component.imagenDocuments).toBeNull();
+        expect(component.previousResult).toBeNull();
+    });
+
+    it('should show snackbar and reset dress when top is selected with a dress', () => {
+        component.secondFormGroup.get('dress')?.setValue({id: 'dress'});
+        fixture.detectChanges();
+
+        component.secondFormGroup.get('top')?.setValue({id: 'top'});
+        fixture.detectChanges();
+
+        expect(snackBar.open).toHaveBeenCalled();
+        expect(component.selectedDress).toBeNull();
+    });
+
+     it('should show snackbar and reset dress when bottom is selected with a dress', () => {
+        component.secondFormGroup.get('dress')?.setValue({id: 'dress'});
+        fixture.detectChanges();
+
+        component.secondFormGroup.get('bottom')?.setValue({id: 'bottom'});
+        fixture.detectChanges();
+
+        expect(snackBar.open).toHaveBeenCalled();
+        expect(component.selectedDress).toBeNull();
+    });
+
+    it('should show snackbar and reset top and bottom when dress is selected', () => {
+        component.secondFormGroup.get('top')?.setValue({id: 'top'});
+        component.secondFormGroup.get('bottom')?.setValue({id: 'bottom'});
+        fixture.detectChanges();
+
+        component.secondFormGroup.get('dress')?.setValue({id: 'dress'});
+        fixture.detectChanges();
+
+        expect(snackBar.open).toHaveBeenCalled();
+        expect(component.selectedTop).toBeNull();
+        expect(component.selectedBottom).toBeNull();
+    });
   });
 
 
+  fdescribe('loadVtoAssets', () => {
+    it('should load and categorize VTO assets on successful HTTP GET', () => {
+      fixture.detectChanges(); // ngOnInit -> loadVtoAssets
 
-  it('should create', () => {
-    expect(component).toBeTruthy();
+      const req = httpMock.expectOne(`${environment.backendURL}/source_assets/vto-assets`);
+      expect(req.request.method).toBe('GET');
+      req.flush(mockVtoAssetsResponse);
+
+      expect(component.maleModels.length).toBe(1);
+      expect(component.femaleModels.length).toBe(1);
+      expect(component.tops.length).toBe(1);
+      expect(component.bottoms.length).toBe(1);
+      expect(component.dresses.length).toBe(1);
+      expect(component.shoes.length).toBe(1);
+    });
+
+    it('should show snackbar on error when loading VTO assets', () => {
+        fixture.detectChanges(); // ngOnInit -> loadVtoAssets
+        const errorResponse = { status: 500, statusText: 'Server Error' };
+        const req = httpMock.expectOne(`${environment.backendURL}/source_assets/vto-assets`);
+        req.flush('Error', errorResponse);
+
+        expect(snackBar.open).toHaveBeenCalled();
+    });
+  });
+
+  fdescribe('State Management', () => {
+    it('should save the current state using VtoStateService', () => {
+      spyOn(vtoStateService, 'updateState');
+      const testState: Partial<VtoState> = {
+        model: { id: '1' },
+        top: {id: '3'},
+      };
+      component.firstFormGroup.get('model')?.setValue(testState.model);
+      component.secondFormGroup.get('top')?.setValue(testState.top);
+
+      component['saveVtoState']();
+
+      expect(vtoStateService.updateState).toHaveBeenCalledWith(jasmine.objectContaining(testState));
+    });
+
+    it('should restore the state from VtoStateService', () => {
+        const testState: VtoState = {
+          model: { id: '1' },
+          top: { id: '3' },
+          stepperIndex: 1,
+          modelType: 'female',
+          bottom: undefined,
+          dress: undefined,
+          shoes: undefined
+        };
+        spyOn(vtoStateService, 'getState').and.returnValue(testState);
+
+        component['restoreVtoState']();
+
+        expect(component.firstFormGroup.get('model')?.value).toEqual(testState.model);
+        expect(component.secondFormGroup.get('top')?.value).toEqual(testState.top);
+        expect(component['savedStepperIndex']).toBe(1);
+      });
+
+    it('should clear the state and reset the stepper', () => {
+        spyOn(vtoStateService, 'resetState');
+
+        component['clearVtoState']();
+
+        expect(vtoStateService.resetState).toHaveBeenCalled();
+        expect(component['savedStepperIndex']).toBe(0);
+      });
+  });
+
+  fdescribe('User Interactions', () => {
+    beforeEach(() => {
+        fixture.detectChanges();
+        const req = httpMock.expectOne(`${environment.backendURL}/source_assets/vto-assets`);
+        req.flush(mockVtoAssetsResponse);
+    });
+
+    it('should open image selector dialog', () => {
+        spyOn(dialog, 'open').and.returnValue({ afterClosed: () => of(null) } as MatDialogRef<typeof component>);
+        component.openImageSelector();
+        expect(dialog.open).toHaveBeenCalledWith(ImageSelectorComponent, jasmine.any(Object));
+    });
+
+    it('should handle file drop', fakeAsync(() => {
+        const file = new File([''], 'test.png', { type: 'image/png' });
+        const event = { preventDefault: () => {}, dataTransfer: { files: [file] } } as any;
+        component.onDrop(event);
+        tick();
+        expect(sourceAssetService.uploadAsset).toHaveBeenCalledWith(file, jasmine.any(Object));
+        expect(component.firstFormGroup.get('model')?.value).toBeTruthy();
+    }));
+
+    it('should handle error on file drop', fakeAsync(() => {
+        (sourceAssetService.uploadAsset as jasmine.Spy).and.returnValue(throwError(()=> new Error('Upload failed')));
+        const file = new File([''], 'test.png', { type: 'image/png' });
+        const event = { preventDefault: () => {}, dataTransfer: { files: [file] } } as any;
+        component.onDrop(event);
+        tick();
+        expect(snackBar.open).toHaveBeenCalled();
+    }));
+
+
+    it('should clear the model image', () => {
+        component.firstFormGroup.get('model')?.setValue({id: 'test'});
+        const event = new MouseEvent('click');
+        spyOn(event, 'stopPropagation');
+        component.clearImage(event);
+        expect(component.firstFormGroup.get('model')?.value).toBeNull();
+        expect(event.stopPropagation).toHaveBeenCalled();
+    });
+
+    it('should select and deselect a garment', () => {
+        const garment = component.tops[0];
+        component.selectGarment(garment, 'top');
+        expect(component.secondFormGroup.get('top')?.value).toEqual(garment);
+        component.selectGarment(garment, 'top');
+        expect(component.secondFormGroup.get('top')?.value).toBeNull();
+    });
+
+    it('should call startVtoGeneration on tryOn', () => {
+        component.firstFormGroup.get('model')?.setValue({inputLink: {sourceAssetId: 1}});
+        component.secondFormGroup.get('top')?.setValue({inputLink: {sourceAssetId: 2}});
+        component.tryOn();
+        expect(searchService.startVtoGeneration).toHaveBeenCalled();
+    });
+
+     it('should show error if no model is selected on tryOn', () => {
+        component.tryOn();
+        expect(searchService.startVtoGeneration).not.toHaveBeenCalled();
+    });
+
+    it('should show error if no garment is selected on tryOn', () => {
+        component.firstFormGroup.get('model')?.setValue({inputLink: {sourceAssetId: 1}});
+        component.tryOn();
+        expect(snackBar.open).toHaveBeenCalled();
+    });
+
+    it('should show error if workspaceId is missing on tryOn', () => {
+        (workspaceStateService.getActiveWorkspaceId as jasmine.Spy).and.returnValue(null);
+        component.firstFormGroup.get('model')?.setValue({inputLink: {sourceAssetId: 1}});
+        component.secondFormGroup.get('top')?.setValue({inputLink: {sourceAssetId: 2}});
+        component.tryOn();
+        expect(snackBar.open).toHaveBeenCalled();
+    });
+
+
+    it('should set model from image', () => {
+        const testMediaItem: MediaItem = {
+          id: 456, status: JobStatus.COMPLETED, presignedUrls: ['gs://new_model.png'], originalPrompt: '', createdAt: '', updatedAt: '',
+          gcsUris: []
+        };
+        component.imagenDocuments = testMediaItem;
+        component.setModelFromImage(0);
+        expect(component.firstFormGroup.get('model')?.value.name).toBe('Generated Model');
+    });
+
+    it('should navigate on remixWithThisImage', () => {
+        const router: Router = TestBed.inject(Router);
+        spyOn(router, 'navigate');
+        const testMediaItem: MediaItem = {
+          id: 456, status: JobStatus.COMPLETED, presignedUrls: ['gs://new_model.png'], originalPrompt: 'prompt', createdAt: '', updatedAt: '',
+          gcsUris: []
+        };
+        component.imagenDocuments = testMediaItem;
+        component.remixWithThisImage(0);
+        expect(router.navigate).toHaveBeenCalled();
+    });
+
+    it('should navigate on generateVideoWithResult', () => {
+        const router: Router = TestBed.inject(Router);
+        spyOn(router, 'navigate');
+        const testMediaItem: MediaItem = {
+          id: 456, status: JobStatus.COMPLETED, presignedUrls: ['gs://new_model.png'], originalPrompt: 'prompt', createdAt: '', updatedAt: '',
+          gcsUris: []
+        };
+        component.imagenDocuments = testMediaItem;
+        component.generateVideoWithResult({role: 'start', index: 0});
+        expect(router.navigate).toHaveBeenCalledWith(['/video'], jasmine.any(Object));
+    });
+  });
+
+  fdescribe('Template Rendering', () => {
+    it('should show spinner when job is processing', () => {
+        activeVtoJobSubject.next(mockVtoJob);
+        fixture.detectChanges();
+        const spinner = fixture.nativeElement.querySelector('mat-spinner');
+        expect(spinner).toBeTruthy();
+    });
+
+    it('should show error message when job has failed', () => {
+        const failedJob = { ...mockVtoJob, status: JobStatus.FAILED, errorMessage: 'Test Error' };
+        activeVtoJobSubject.next(failedJob);
+        fixture.detectChanges();
+        const errorContainer = fixture.nativeElement.querySelector('.failure-container');
+        expect(errorContainer).toBeTruthy();
+        expect(errorContainer.textContent).toContain('Test Error');
+      });
+
+    it('should show the result when job is completed', () => {
+        const completedJob = { ...mockVtoJob, status: JobStatus.COMPLETED, presignedUrls: ['gs://result.png'] };
+        activeVtoJobSubject.next(completedJob);
+        fixture.detectChanges();
+        const resultImage = fixture.nativeElement.querySelector('app-media-lightbox');
+        expect(resultImage).toBeTruthy();
+    });
   });
 });
