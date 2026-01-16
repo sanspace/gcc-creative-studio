@@ -27,8 +27,7 @@ describe('MediaLightboxComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [MediaLightboxComponent],
-      imports: [HttpClientTestingModule, RouterTestingModule],
+      imports: [MediaLightboxComponent, HttpClientTestingModule, RouterTestingModule],
       providers: [
         {
           provide: ActivatedRoute,

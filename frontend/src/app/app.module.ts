@@ -79,6 +79,7 @@ import { FlowPromptBoxComponent } from "./common/components/flow-prompt-box/flow
 import { ImageCropperDialogComponent } from './common/components/image-cropper-dialog/image-cropper-dialog.component';
 import { ImageSelectorComponent } from './common/components/image-selector/image-selector.component';
 import { MediaLightboxComponent } from './common/components/media-lightbox/media-lightbox.component';
+
 import { SourceAssetGalleryComponent } from './common/components/source-asset-gallery/source-asset-gallery.component';
 import { SharedModule } from './common/shared.module';
 import { AddVoiceDialogComponent } from './components/add-voice-dialog/add-voice-dialog.component';
@@ -114,7 +115,6 @@ import { WorkbenchComponent } from './workbench/workbench.component';
     ArenaComponent,
     MediaGalleryComponent,
     MediaDetailComponent,
-    MediaLightboxComponent,
     VtoComponent,
     ImageSelectorComponent,
     SourceAssetGalleryComponent,
@@ -145,6 +145,7 @@ import { WorkbenchComponent } from './workbench/workbench.component';
     NotificationContainerComponent,
     FlowPromptBoxComponent,
     SharedModule,
+    MediaLightboxComponent,
 
     // Explicitly listing all relevant Angular Material modules
     MatButtonModule,

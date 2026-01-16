@@ -41,7 +41,7 @@ describe('ImageCropperDialogComponent', () => {
       providers: [
         { provide: MatDialogRef, useValue: {} },
         { provide: MAT_DIALOG_DATA, useValue: {
-          imageFile: { type: 'image/jpeg', name: 'mock.jpg', size: 123 } as File,
+          imageFile: new File([''], 'mock.jpg', { type: 'image/jpeg' }),
           assetType: AssetTypeEnum.GENERIC_IMAGE,
           aspectRatios: [{label: '1:1 Square', value: 1 / 1, stringValue: '1:1'}],
         }},
@@ -49,7 +49,6 @@ describe('ImageCropperDialogComponent', () => {
           uploadAsset: () => of({id: '123', name: 'mock.jpg'}) // Mock uploadAsset to return an observable
         }}
       ],
-      schemas: [NO_ERRORS_SCHEMA]
     }).compileComponents();
 
     fixture = TestBed.createComponent(ImageCropperDialogComponent);

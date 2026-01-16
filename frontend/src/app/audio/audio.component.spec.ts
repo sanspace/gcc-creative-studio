@@ -76,7 +76,7 @@ describe('AudioComponent', () => {
     ]);
 
     await TestBed.configureTestingModule({
-      declarations: [AudioComponent, MediaLightboxComponent],
+      declarations: [AudioComponent],
       imports: [
         HttpClientTestingModule,
         MatSnackBarModule,
@@ -93,6 +93,7 @@ describe('AudioComponent', () => {
         NgOptimizedImage,
         MatMenuModule,
         MatTooltipModule,
+        MediaLightboxComponent,
       ],
       providers: [
         { provide: AudioService, useValue: audioServiceSpy },
@@ -105,13 +106,6 @@ describe('AudioComponent', () => {
         },
         { provide: NotificationService, useValue: notificationServiceSpy },
       ],
-    })
-    .overrideComponent(MediaLightboxComponent, {
-      set: {
-        providers: [
-          { provide: NotificationService, useValue: notificationServiceSpy },
-        ],
-      },
     })
     .compileComponents();
 
