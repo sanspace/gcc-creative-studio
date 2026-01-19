@@ -18,7 +18,9 @@ from typing import Any, Dict, List, Optional
 from google.cloud import aiplatform
 from google.cloud.aiplatform.matching_engine import matching_engine_index_endpoint, matching_engine_index
 from google.cloud.aiplatform_v1 import IndexDatapoint
-
+import vertexai
+from vertexai.vision_models import MultiModalEmbeddingModel, Image as VertexImage, Video as VertexVideo
+from vertexai.language_models import TextEmbeddingModel
 from src.config.config_service import config_service
 
 logger = logging.getLogger(__name__)
@@ -34,7 +36,6 @@ class VectorSearchService:
         self.project_id = self.cfg.PROJECT_ID
         self.location = "us-central1" # defaulting to us-central1 as seen in config
         
-        # Initialize the AI Platform client
         aiplatform.init(project=self.project_id, location=self.location)
 
     def _get_index_endpoint(self) -> matching_engine_index_endpoint.MatchingEngineIndexEndpoint:
@@ -210,3 +211,88 @@ class VectorSearchService:
         except Exception as e:
             logger.error(f"Failed to search vectors: {e}")
             return []
+
+    def generate_embedding(
+        self, 
+        content: Any, 
+        model_type: Optional[str] = None
+    ) -> Optional[List[float]]:
+        """
+        Generates an embedding for the given text or multimodal content.
+        
+        Args:
+            content: A string (for text embedding) or a list of parts (for multimodal).
+            model_type: Optional "text" or "multimodal" to force model selection.
+            
+        Returns:
+            A list of floats representing the embedding, or None if failed.
+        """
+
+        # Determine model
+        model_name = "text-embedding-004"
+        if isinstance(content, list) or model_type == "multimodal":
+             model_name = "multimodal-embedding-001"
+             
+        try:
+            
+            if model_name == "multimodal-embedding-001":
+                mm_model = MultiModalEmbeddingModel.from_pretrained("multimodalembedding@001")
+                
+                image = None
+                video = None
+                text = None
+                
+                if isinstance(content, list):
+                    for part in content:
+                        if hasattr(part, "text") and part.text:
+                            text = part.text
+                        elif hasattr(part, "file_data") and part.file_data:
+                             if part.file_data.mime_type and part.file_data.mime_type.startswith("image/"):
+                                 image = VertexImage.load_from_file(part.file_data.file_uri)
+                             elif part.file_data.mime_type and part.file_data.mime_type.startswith("video/"):
+                                 video = VertexVideo.load_from_file(part.file_data.file_uri)
+                        
+                        # types.Part might have 'file_uri' if created via from_uri (less common in V2 SDK)
+                        if hasattr(part, "file_uri") and part.file_uri:
+                             # Determine if image or video based on mime or uri?
+                             # We try to inspect available attributes
+                             mime = getattr(part, "mime_type", "")
+                             if mime.startswith("image/"):
+                                 image = VertexImage.load_from_file(part.file_uri)
+                             elif mime.startswith("video/"):
+                                 video = VertexVideo.load_from_file(part.file_uri)
+                
+                elif isinstance(content, str):
+                    text = content
+
+                embeddings = mm_model.get_embeddings(
+                    image=image,
+                    video=video,
+                    contextual_text=text,
+                )
+                
+                if image:
+                    return embeddings.image_embedding
+                elif video:
+                    # video embeddings are segmented. Return the first one?
+                    if embeddings.video_embeddings:
+                        return embeddings.video_embeddings[0].embedding
+                elif text:
+                    return embeddings.text_embedding
+                
+                return None
+
+            else:
+                # Text Embedding using Vertex AI SDK
+                model = TextEmbeddingModel.from_pretrained(model_name)
+                # TextEmbeddingModel expects a list of Input objects or strings?
+                # It accepts strings usually.
+                if isinstance(content, str):
+                    embeddings = model.get_embeddings([content])
+                    if embeddings:
+                        return embeddings[0].values
+                return None
+        except Exception as e:
+            logger.error(f"Failed to generate embedding with model {model_name}: {e}")
+            return None
+

@@ -428,6 +428,35 @@
        So .critique-overlay.compliant .header-title mat-icon works. 
     */
 
+        .header-actions {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+        }
+    
+        .close-critique-button {
+          background: none;
+          border: none;
+          color: rgba(255, 255, 255, 0.4);
+          cursor: pointer;
+          padding: 4px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 50%;
+          transition: all 0.2s ease;
+    
+          mat-icon {
+            font-size: 20px;
+            width: 20px;
+            height: 20px;
+          }
+    
+          &:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+          }
+        }
     .score-indicator {
       display: flex;
       align-items: baseline;

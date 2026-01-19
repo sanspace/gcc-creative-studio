@@ -231,7 +231,7 @@ def _process_brand_guideline_in_background(
                             
                             if text_content:
                                 try:
-                                    embedding = await loop.run_in_executor(None, gemini_service.generate_embedding, text_content)
+                                    embedding = await loop.run_in_executor(None, vector_search_service.generate_embedding, text_content)
                                     # Generate Sparse Embedding (Stateless)
                                     sparse_vec = await loop.run_in_executor(None, sparse_embedding_service.get_sparse_embedding, text_content)
                                     
@@ -268,7 +268,7 @@ def _process_brand_guideline_in_background(
                                     mime_type = "image/jpeg"
                                 
                                 img_part = types.Part.from_uri(file_uri=img_uri, mime_type=mime_type)
-                                embedding = await loop.run_in_executor(None, gemini_service.generate_embedding, [img_part])
+                                embedding = await loop.run_in_executor(None, vector_search_service.generate_embedding, [img_part])
                                 
                                 if embedding:
                                     image_vectors.append({

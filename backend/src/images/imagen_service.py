@@ -484,6 +484,17 @@ def _process_image_in_background(
                     # Initialize GenAI client in the worker process
                     client = GenAIModelSetup.init()
 
+                    # Special handling for preview models that require global location
+                    if request_dto.generation_model in [
+                        GenerationModelEnum.GEMINI_2_5_FLASH_IMAGE_PREVIEW,
+                        GenerationModelEnum.GEMINI_3_PRO_IMAGE_PREVIEW,
+                    ]:
+                        client = Client(
+                            project=cfg.PROJECT_ID,
+                            location="global",
+                            vertexai=cfg.INIT_VERTEX,
+                        )
+
                     # --- GENERATION LOGIC ---
                     start_time = time.monotonic()
                     gcs_output_directory = f"gs://{cfg.GENMEDIA_BUCKET}"

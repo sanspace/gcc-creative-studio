@@ -153,7 +153,22 @@ export class MediaLightboxComponent
         .map(f => f.replace(/^[•\-*]\s*/, ''));
     }
 
+    if (findingsMatch && findingsMatch[1]) {
+      const findingsText = findingsMatch[1].trim();
+      // split by bullets
+      result.keyFindings = findingsText
+        .split(/\n•|\n-|\n\*/) // alignment with typical markdown bullets
+        .map(f => f.trim())
+        .filter(f => f.length > 0)
+        // cleanup leading bullet chars if split didn't catch them (first item)
+        .map(f => f.replace(/^[•\-*]\s*/, ''));
+    }
+
     return result;
+  }
+
+  closeCritique(): void {
+    this.showCritique = false;
   }
 
   constructor(

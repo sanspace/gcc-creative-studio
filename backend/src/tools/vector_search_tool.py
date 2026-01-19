@@ -31,8 +31,8 @@ def create_search_branding_guidelines_tool(
         logger.info(f"search_branding_guidelines tool called - Query: {query}, Workspace: {workspace_id}")
         
         # 1. Generate embeddings
-        text_query_embedding = gemini_service.generate_embedding(query, model_type="text")
-        multimodal_query_embedding = gemini_service.generate_embedding(query, model_type="multimodal")
+        text_query_embedding = vector_search_service.generate_embedding(query, model_type="text")
+        multimodal_query_embedding = vector_search_service.generate_embedding(query, model_type="multimodal")
         
         # 1.1 Generate Sparse Embedding
         from src.common.sparse_embedding_service import SparseEmbeddingService
