@@ -17,7 +17,7 @@ from typing import Optional
 
 from fastapi import Query
 from google.genai import types
-from pydantic import Field, ValidationInfo, field_validator
+from pydantic import Field, ValidationInfo, field_validator, model_validator
 from typing_extensions import Annotated
 
 from src.common.base_dto import (
@@ -123,25 +123,19 @@ class CreateVeoDto(BaseDto):
         description="A list of reference images, each with an ID and a type (ASSET or STYLE).",
     )
 
-    @field_validator("source_media_items")
-    def validate_source_media_items(
-        cls, value: Optional[list[SourceMediaItemLink]], info: ValidationInfo
-    ) -> Optional[list[SourceMediaItemLink]]:
+    @model_validator(mode="after")
+    def validate_cross_fields(self) -> "CreateVeoDto":
         """
         Performs several validations:
         1. Ensures that source_media_items have a valid role.
-        2. Ensures the total number of reference images does not exceed 3.
-        3. Ensures reference images (from any source) are not used with start/end frames or source videos.
-        4. Ensures reference image roles are only used with the correct model.
+        2. Ensures references are not used with start/end frames or source videos.
+        3. Ensures reference image roles are only used with correct model.
         """
-        # The `validate_source_media_items` validator handles all reference sources
-        # (source assets and media items) in one place.
-        # This validator is kept to ensure the field is processed, but the core logic is moved.
         conflicting_roles_present = False
         reference_roles_present = False
-        model = info.data.get("generation_model")
+        model = self.generation_model
 
-        if value:
+        if self.source_media_items:
             non_reference_roles = {
                 AssetRoleEnum.START_FRAME,
                 AssetRoleEnum.END_FRAME,
@@ -153,22 +147,18 @@ class CreateVeoDto(BaseDto):
             }
             valid_roles = non_reference_roles.union(reference_roles)
 
-            for item in value:
+            for item in self.source_media_items:
                 if item.role not in valid_roles:
-                    raise ValueError(
-                        f"Invalid role '{item.role}' for source_media_item."
-                    )
+                    raise ValueError(f"Invalid role '{item.role}' for source_media_item.")
                 if item.role in non_reference_roles:
                     conflicting_roles_present = True
                 if item.role in reference_roles:
                     reference_roles_present = True
 
-        # The validator now correctly checks both `reference_images` and reference roles in `source_media_items`
-        has_asset_references = bool(info.data.get("reference_images"))
+        has_asset_references = bool(self.reference_images)
         has_any_references = has_asset_references or reference_roles_present
 
         if has_any_references:
-            # Enforce model compatibility for any reference image usage
             if (
                 model != GenerationModelEnum.VEO_2_GENERATE_EXP
                 and model != GenerationModelEnum.VEO_3_1_PREVIEW
@@ -178,10 +168,9 @@ class CreateVeoDto(BaseDto):
                     f"'{GenerationModelEnum.VEO_3_1_PREVIEW.value}' model."
                 )
 
-            # Check for other conflicting fields from the main DTO
-            start_image_present = bool(info.data.get("start_image_asset_id"))
-            end_image_present = bool(info.data.get("end_image_asset_id"))
-            source_video_present = bool(info.data.get("source_video_asset_id"))
+            start_image_present = bool(self.start_image_asset_id)
+            end_image_present = bool(self.end_image_asset_id)
+            source_video_present = bool(self.source_video_asset_id)
 
             if (
                 start_image_present
@@ -193,7 +182,8 @@ class CreateVeoDto(BaseDto):
                     "Reference images cannot be used at the same time as a start frame, end frame, or source video."
                 )
 
-        return value
+        return self
+
 
     @field_validator("aspect_ratio")
     def validate_video_aspect_ratio(

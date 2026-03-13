@@ -1269,9 +1269,10 @@ class ImagenService:
             A MediaItemResponse object with presigned URLs, or None if not found.
         """
         # 1. Fetch the base document from Firestore
-        media_item = self.media_repo.get_by_id(media_id)
+        media_item = await self.media_repo.get_by_id(media_id)
         if not media_item:
             return None
+
 
         # 2. Create tasks to generate all presigned URLs in parallel
         presigned_url_tasks = [

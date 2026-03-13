@@ -35,7 +35,7 @@
   border-radius: 0.5rem;
   overflow: hidden;
   position: relative;
-  min-height: 300px; // Ensure it doesn't collapse
+  min-height: 50vh; // Ensure it doesn't collapse
 
   &.zoomable {
     cursor: zoom-in;

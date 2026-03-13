@@ -228,6 +228,8 @@ class SourceAssetService:
         )
         final_gcs_uri: Optional[str] = None
         thumbnail_gcs_uri: Optional[str] = None
+        original_gcs_uri: Optional[str] = None
+
         temp_dir = f"temp/source_assets/{uuid.uuid4()}"
         final_aspect_ratio: AspectRatioEnum
 
@@ -434,7 +436,7 @@ class SourceAssetService:
             workspace_id=workspace_id,
             user_id=user.id,
             aspect_ratio=final_aspect_ratio,
-            gcs_uri = original_gcs_uri,
+            gcs_uri=original_gcs_uri or final_gcs_uri,
             thumbnail_gcs_uri=thumbnail_gcs_uri,
             original_filename=filename or "untitled",
             mime_type=mime_type,
@@ -442,6 +444,7 @@ class SourceAssetService:
             scope=final_scope,
             asset_type=final_asset_type,
         )
+
 
         new_asset = SourceAssetModel(
             workspace_id=workspace_id,

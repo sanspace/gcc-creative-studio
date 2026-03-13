@@ -339,8 +339,10 @@ def _process_video_in_background(
                         ):
                             return None
 
+                        print("DEBUG VEO: REACHED LINE 342")
                         # Download the generated video and create thumbnail
                         thumbnail_path = ""
+
 
                         final_source_media_items = request_dto.source_media_items
                         permanent_thumbnail_gcs_uris = []
