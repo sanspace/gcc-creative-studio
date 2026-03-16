@@ -12,18 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from unittest.mock import AsyncMock, MagicMock, patch
 
-from src.videos.veo_controller import router
 from src.auth.auth_guard import get_current_user
-from src.workspaces.workspace_auth_guard import WorkspaceAuth
-from src.videos.veo_service import VeoService
-from src.users.user_model import UserModel
+from src.common.base_dto import MimeTypeEnum
 from src.galleries.dto.gallery_response_dto import MediaItemResponse
-from src.common.base_dto import GenerationModelEnum, MimeTypeEnum
+from src.users.user_model import UserModel
+from src.videos.veo_controller import router
+from src.videos.veo_service import VeoService
+from src.workspaces.workspace_auth_guard import WorkspaceAuth
 
 
 @pytest.fixture
@@ -50,7 +51,7 @@ def mock_workspace_auth():
 def client(mock_user, mock_veo_service, mock_workspace_auth):
     app = FastAPI()
     app.include_router(router)
-    
+
     # Setup app state
     app.state.executor = MagicMock()
 
@@ -65,11 +66,19 @@ def client(mock_user, mock_veo_service, mock_workspace_auth):
 def test_generate_videos_success(client, mock_veo_service, mock_workspace_auth):
     # Setup
     mock_response = MediaItemResponse(
-        id=123, workspace_id=1, user_id=1, user_email="test@example.com",
-        mime_type=MimeTypeEnum.VIDEO_MP4, status="processing", original_prompt="Test",
-
-        gcs_uris=[], thumbnail_uris=[], presigned_urls=[], presigned_thumbnail_urls=[],
-        aspect_ratio="16:9", model="veo-3.0-generate-001"
+        id=123,
+        workspace_id=1,
+        user_id=1,
+        user_email="test@example.com",
+        mime_type=MimeTypeEnum.VIDEO_MP4,
+        status="processing",
+        original_prompt="Test",
+        gcs_uris=[],
+        thumbnail_uris=[],
+        presigned_urls=[],
+        presigned_thumbnail_urls=[],
+        aspect_ratio="16:9",
+        model="veo-3.0-generate-001",
     )
     mock_veo_service.start_video_generation_job.return_value = mock_response
 
@@ -78,7 +87,7 @@ def test_generate_videos_success(client, mock_veo_service, mock_workspace_auth):
         "workspace_id": 1,
         "generation_model": "veo-3.0-generate-001",
         "aspect_ratio": "16:9",
-        "duration_seconds": 5
+        "duration_seconds": 5,
     }
 
     response = client.post("/api/videos/generate-videos", json=payload)
@@ -92,22 +101,27 @@ def test_generate_videos_success(client, mock_veo_service, mock_workspace_auth):
 def test_concatenate_videos_success(client, mock_veo_service, mock_workspace_auth):
     # Setup
     mock_response = MediaItemResponse(
-        id=456, workspace_id=1, user_id=1, user_email="test@example.com",
-        mime_type=MimeTypeEnum.VIDEO_MP4, status="processing", original_prompt="Concat",
-
-        gcs_uris=[], thumbnail_uris=[], presigned_urls=[], presigned_thumbnail_urls=[],
-        aspect_ratio="16:9", model="veo-3.0-generate-001"
+        id=456,
+        workspace_id=1,
+        user_id=1,
+        user_email="test@example.com",
+        mime_type=MimeTypeEnum.VIDEO_MP4,
+        status="processing",
+        original_prompt="Concat",
+        gcs_uris=[],
+        thumbnail_uris=[],
+        presigned_urls=[],
+        presigned_thumbnail_urls=[],
+        aspect_ratio="16:9",
+        model="veo-3.0-generate-001",
     )
     mock_veo_service.start_video_concatenation_job.return_value = mock_response
 
     payload = {
         "name": "Concatenated Video",
         "workspace_id": 1,
-        "inputs": [
-            {"type": "media_item", "id": 1},
-            {"type": "media_item", "id": 2}
-        ],
-        "aspect_ratio": "16:9"
+        "inputs": [{"type": "media_item", "id": 1}, {"type": "media_item", "id": 2}],
+        "aspect_ratio": "16:9",
     }
 
     response = client.post("/api/videos/concatenate", json=payload)
@@ -120,18 +134,19 @@ def test_concatenate_videos_success(client, mock_veo_service, mock_workspace_aut
 
 def test_generate_videos_value_error(client, mock_veo_service):
     # Setup service to raise ValueError
-    mock_veo_service.start_video_generation_job.side_effect = ValueError("Test ValueError message")
+    mock_veo_service.start_video_generation_job.side_effect = ValueError(
+        "Test ValueError message",
+    )
 
     payload = {
         "prompt": "A running horse",
         "workspace_id": 1,
         "generation_model": "veo-3.0-generate-001",
         "aspect_ratio": "16:9",
-        "duration_seconds": 5
+        "duration_seconds": 5,
     }
 
     response = client.post("/api/videos/generate-videos", json=payload)
 
     assert response.status_code == 400
     assert "Test ValueError message" in response.json()["detail"]
-

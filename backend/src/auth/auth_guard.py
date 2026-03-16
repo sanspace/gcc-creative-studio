@@ -14,7 +14,6 @@
 
 import asyncio
 import logging
-from typing import List
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -43,8 +42,7 @@ async def get_current_user(
     token: str = Depends(oauth2_scheme),
     user_service: UserService = Depends(UserService),
 ) -> UserModel:
-    """
-    Dependency that handles the entire authentication and user provisioning flow.
+    """Dependency that handles the entire authentication and user provisioning flow.
 
     1. Verifies the Firebase ID token.
     2. Extracts user information (id, email).
@@ -85,10 +83,7 @@ async def get_current_user(
 
         # If ALLOWED_ORGS is configured, check the user's organization.
         if config_service.ALLOWED_ORGS:
-            if (
-                not token_info_hd
-                or token_info_hd not in config_service.ALLOWED_ORGS
-            ):
+            if not token_info_hd or token_info_hd not in config_service.ALLOWED_ORGS:
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail=f"User from '{token_info_hd}' is not part of an allowed organization.",
@@ -97,7 +92,9 @@ async def get_current_user(
         # Just-In-Time (JIT) User Provisioning:
         # Create a user profile in our database on their first API call.
         user_doc = await user_service.create_user_if_not_exists(
-            email=email, name=name, picture=picture
+            email=email,
+            name=name,
+            picture=picture,
         )
 
         if not user_doc:
@@ -110,7 +107,7 @@ async def get_current_user(
             logger.info(f"Updating picture for user: {email}")
             user_doc.picture = picture
             if user_doc.id:
-                 await user_service.user_repo.update(user_doc.id, {"picture": picture})
+                await user_service.user_repo.update(user_doc.id, {"picture": picture})
 
         return user_doc
 
@@ -133,25 +130,24 @@ async def get_current_user(
         logger.error(f"[get_current_user - Exception]: {e}")
         raise HTTPException(
             status_code=getattr(
-                e, "status_code", status.HTTP_500_INTERNAL_SERVER_ERROR
+                e,
+                "status_code",
+                status.HTTP_500_INTERNAL_SERVER_ERROR,
             ),
             detail=f"An unexpected error occurred during authentication: {e}",
         )
 
 
 class RoleChecker:
-    """
-    Dependency that checks if the authenticated user has the required roles.
+    """Dependency that checks if the authenticated user has the required roles.
     It depends on `get_current_user` to ensure the user is authenticated first.
     """
 
-    def __init__(self, allowed_roles: List[UserRoleEnum]):
+    def __init__(self, allowed_roles: list[UserRoleEnum]):
         self.allowed_roles = allowed_roles
 
     def __call__(self, user: UserModel = Depends(get_current_user)):
-        """
-        Checks the user's roles against the allowed roles.
-        """
+        """Checks the user's roles against the allowed roles."""
         is_authorized = any(role in self.allowed_roles for role in user.roles)
 
         if not is_authorized:

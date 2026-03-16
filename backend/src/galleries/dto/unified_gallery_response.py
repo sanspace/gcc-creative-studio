@@ -13,41 +13,38 @@
 # limitations under the License.
 
 from datetime import datetime
-from typing import Dict, List, Optional, Any
+from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic.alias_generators import to_camel
-from pydantic import field_validator
 
 
 class UnifiedGalleryItemResponse(BaseModel):
-    """
-    Response model for a unified gallery item (MediaItem or SourceAsset).
-    """
+    """Response model for a unified gallery item (MediaItem or SourceAsset)."""
+
     id: int
     workspace_id: int
     created_at: datetime
     item_type: str  # 'media_item' or 'source_asset'
-    status: Optional[str] = None
-    gcs_uris: List[str] = []
-    thumbnail_uris: List[str] = []
-    deleted_at: Optional[datetime] = None  # To support frontend filters
+    status: str | None = None
+    gcs_uris: list[str] = []
+    thumbnail_uris: list[str] = []
+    deleted_at: datetime | None = None  # To support frontend filters
     # Map from 'metadata_' in SQLAlchemy model to 'metadata' in Pydantic
-    metadata: Dict[str, Any] = Field(default_factory=dict, validation_alias="metadata_")
-
+    metadata: dict[str, Any] = Field(default_factory=dict, validation_alias="metadata_")
 
     @field_validator("metadata", mode="after")
     @classmethod
-    def convert_metadata_keys(cls, v: Dict[str, Any]) -> Dict[str, Any]:
+    def convert_metadata_keys(cls, v: dict[str, Any]) -> dict[str, Any]:
         """Converts metadata keys to camelCase for frontend support."""
         if isinstance(v, dict):
             return {to_camel(k): val for k, val in v.items()}
         return v
-    
+
     # Presigned URLs will be injected by the service
-    presigned_urls: List[str] = []
-    presigned_thumbnail_urls: List[str] = []
-    
+    presigned_urls: list[str] = []
+    presigned_thumbnail_urls: list[str] = []
+
     # For compatibility with frontend expecting specific fields at top level,
     # we might want to flatten metadata or keep it nested.
     # The plan implied "UnifiedGalleryItem" response.

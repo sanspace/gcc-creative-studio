@@ -12,13 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List
+
 from pydantic import BaseModel
+
 
 class BulkDownloadItemDto(BaseModel):
     id: int
     type: str
 
+
 class BulkDownloadDto(BaseModel):
-    items: List[BulkDownloadItemDto]
+    items: list[BulkDownloadItemDto]
     workspace_id: int

@@ -15,7 +15,6 @@
 import datetime
 import logging
 from os import getenv
-from typing import Dict, Tuple
 
 from google.auth import credentials
 from google.cloud import iam_credentials_v1, storage
@@ -24,8 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 class IamSignerCredentials(credentials.Signing):
-    """
-    A custom credentials class that uses the IAM Credentials API to sign bytes.
+    """A custom credentials class that uses the IAM Credentials API to sign bytes.
     This is used for generating **DOWNLOAD (GET)** presigned URLs.
 
     This pattern allows the backend's service account to generate URLs signed by a
@@ -37,17 +35,20 @@ class IamSignerCredentials(credentials.Signing):
     # In-memory cache for presigned URLs (persists across dependency injections)
     # Key: (gcs_uri, expiration_hours, method)
     # Value: (url, expiry_timestamp)
-    _url_cache: Dict[Tuple[str, int, str], Tuple[str, datetime.datetime]] = {}
+    _url_cache: dict[tuple[str, int, str], tuple[str, datetime.datetime]] = {}
 
     def __init__(self):
         # 1. Create the custom credentials object for signing.
         self.service_account_email = getenv("SIGNING_SA_EMAIL", "")
         self.iam_client = iam_credentials_v1.IAMCredentialsClient()
-        self._sa_path = (
-            f"projects/-/serviceAccounts/{self.service_account_email}"
-        )
+        self._sa_path = f"projects/-/serviceAccounts/{self.service_account_email}"
 
-    def _get_cached_url(self, gcs_uri: str, expiration_hours: int, method: str = "GET") -> str | None:
+    def _get_cached_url(
+        self,
+        gcs_uri: str,
+        expiration_hours: int,
+        method: str = "GET",
+    ) -> str | None:
         """Retrieves a valid cached URL if available."""
         cache_key = (gcs_uri, expiration_hours, method)
         if cache_key in self._url_cache:
@@ -55,18 +56,25 @@ class IamSignerCredentials(credentials.Signing):
             # Add a 5-minute buffer before actual expiration
             if datetime.datetime.now() < (expiry - datetime.timedelta(minutes=5)):
                 return url
-            else:
-                del self._url_cache[cache_key]
+            del self._url_cache[cache_key]
         return None
 
-    def _set_cached_url(self, gcs_uri: str, expiration_hours: int, url: str, method: str = "GET"):
+    def _set_cached_url(
+        self,
+        gcs_uri: str,
+        expiration_hours: int,
+        url: str,
+        method: str = "GET",
+    ):
         """Caches a newly generated URL."""
         cache_key = (gcs_uri, expiration_hours, method)
         expiry = datetime.datetime.now() + datetime.timedelta(hours=expiration_hours)
         self._url_cache[cache_key] = (url, expiry)
 
     def generate_presigned_url(
-        self, gcs_uri: str | None, expiration_hours: int = 1
+        self,
+        gcs_uri: str | None,
+        expiration_hours: int = 1,
     ) -> str:
         """Generates a v4 presigned URL for a GCS object.
 
@@ -78,8 +86,10 @@ class IamSignerCredentials(credentials.Signing):
         Args:
             gcs_uri: The GCS URI of the object (e.g., 'gs://bucket/object').
             expiration_hours: The number of hours the URL will be valid for.
+
         Returns:
             A presigned URL, or the original GCS URI if an error occurs.
+
         """
         if not gcs_uri or (gcs_uri and not gcs_uri.startswith("gs://")):
             return gcs_uri or ""
@@ -108,7 +118,7 @@ class IamSignerCredentials(credentials.Signing):
                 method="GET",
                 credentials=self,
             )
-            
+
             # Cache the result
             self._set_cached_url(gcs_uri, expiration_hours, url)
             return url
@@ -123,8 +133,7 @@ class IamSignerCredentials(credentials.Signing):
         bucket_name: str,
         expiration_hours: int = 1,
     ) -> tuple[str | None, str | None]:
-        """
-        Generates a v4 signed URL for a client-side **UPLOAD (PUT)**.
+        """Generates a v4 signed URL for a client-side **UPLOAD (PUT)**.
 
         This method uses the custom signing mechanism of this class to generate
         a URL, which works in environments without a private key (like local dev).
@@ -142,11 +151,10 @@ class IamSignerCredentials(credentials.Signing):
         Returns:
             A tuple containing the presigned URL for the PUT request and the
             final GCS URI of the object, or (None, None) on failure.
+
         """
         if not self.service_account_email:
-            logger.error(
-                "SIGNING_SA_EMAIL is not set. Cannot generate upload URL."
-            )
+            logger.error("SIGNING_SA_EMAIL is not set. Cannot generate upload URL.")
             return None, None
 
         try:
@@ -164,9 +172,7 @@ class IamSignerCredentials(credentials.Signing):
             gcs_uri = f"gs://{bucket_name}/{destination_blob_name}"
             return url, gcs_uri
         except Exception as e:
-            logger.error(
-                f"Failed to generate v4 upload signed URL: {e}", exc_info=True
-            )
+            logger.error(f"Failed to generate v4 upload signed URL: {e}", exc_info=True)
             return None, None
 
     @property
@@ -185,7 +191,7 @@ class IamSignerCredentials(credentials.Signing):
         except Exception as e:
             logger.error(
                 f"IAM PERMISSION DENIED: The principal running this code does not have "
-                f"'roles/iam.serviceAccountTokenCreator' on the service account '{self.service_account_email}'."
+                f"'roles/iam.serviceAccountTokenCreator' on the service account '{self.service_account_email}'.",
             )
             raise e  # Re-raise the exception to be caught by the caller
 
@@ -200,4 +206,3 @@ class IamSignerCredentials(credentials.Signing):
 
     def refresh(self, request):
         """Refresh is not used by this credentials type."""
-        pass

@@ -18,21 +18,17 @@ import io
 import logging
 import math
 import os
-import shutil
 import sys
 import uuid
 from concurrent.futures import (
     ThreadPoolExecutor,
-    as_completed,
 )
-from typing import List, Optional
 
-from fastapi import HTTPException, UploadFile, status
+from fastapi import Depends, HTTPException, status
 from google.cloud.logging import Client as LoggerClient
 from google.cloud.logging.handlers import CloudLoggingHandler
 from pypdf import PdfReader, PdfWriter
 
-from src.workspaces.schema.workspace_model import WorkspaceScopeEnum
 from src.auth.iam_signer_credentials_service import IamSignerCredentials
 from src.brand_guidelines.dto.brand_guideline_response_dto import (
     BrandGuidelineResponseDto,
@@ -40,7 +36,6 @@ from src.brand_guidelines.dto.brand_guideline_response_dto import (
 from src.brand_guidelines.dto.brand_guideline_search_dto import (
     BrandGuidelineSearchDto,
 )
-from src.brand_guidelines.dto.finalize_upload_dto import FinalizeUploadDto
 from src.brand_guidelines.dto.generate_upload_url_dto import (
     GenerateUploadUrlDto,
     GenerateUploadUrlResponseDto,
@@ -56,7 +51,7 @@ from src.common.storage_service import GcsService
 from src.multimodal.gemini_service import GeminiService
 from src.users.user_model import UserModel, UserRoleEnum
 from src.workspaces.repository.workspace_repository import WorkspaceRepository
-from fastapi import Depends
+from src.workspaces.schema.workspace_model import WorkspaceScopeEnum
 
 logger = logging.getLogger(__name__)
 
@@ -69,17 +64,13 @@ def _process_brand_guideline_in_background(
     name: str,
     original_filename: str,
     source_gcs_uri: str,
-    workspace_id: Optional[int],
+    workspace_id: int | None,
 ):
-    """
-    This is the long-running worker task that runs in a separate thread.
+    """This is the long-running worker task that runs in a separate thread.
     It handles PDF splitting, uploading, AI extraction, and database updates.
     """
     import asyncio
-    import os
-    import sys
-    from google.cloud.logging import Client as LoggerClient
-    from google.cloud.logging.handlers import CloudLoggingHandler
+
     from src.database import WorkerDatabase
 
     worker_logger = logging.getLogger(f"brand_guideline_worker.{guideline_id}")
@@ -93,13 +84,14 @@ def _process_brand_guideline_in_background(
         if os.getenv("ENVIRONMENT") == "production":
             log_client = LoggerClient()
             handler = CloudLoggingHandler(
-                log_client, name=f"brand_guideline_worker.{guideline_id}"
+                log_client,
+                name=f"brand_guideline_worker.{guideline_id}",
             )
             worker_logger.addHandler(handler)
         else:
             handler = logging.StreamHandler(sys.stdout)
             formatter = logging.Formatter(
-                "%(asctime)s - [BRAND_GUIDELINE_WORKER] - %(levelname)s - %(message)s"
+                "%(asctime)s - [BRAND_GUIDELINE_WORKER] - %(levelname)s - %(message)s",
             )
             handler.setFormatter(formatter)
             worker_logger.addHandler(handler)
@@ -119,8 +111,12 @@ def _process_brand_guideline_in_background(
 
                     try:
                         # 0. Download the source PDF from GCS
-                        worker_logger.info(f"Downloading source PDF from {source_gcs_uri}")
-                        file_contents = gcs_service.download_bytes_from_gcs(source_gcs_uri)
+                        worker_logger.info(
+                            f"Downloading source PDF from {source_gcs_uri}",
+                        )
+                        file_contents = gcs_service.download_bytes_from_gcs(
+                            source_gcs_uri,
+                        )
 
                         # 1. Split if necessary and upload file(s) to GCS
                         gcs_uris = await BrandGuidelineService._split_and_upload_pdf(
@@ -132,11 +128,11 @@ def _process_brand_guideline_in_background(
 
                         if not gcs_uris:
                             raise Exception(
-                                "Failed to upload PDF chunk(s) to Google Cloud Storage."
+                                "Failed to upload PDF chunk(s) to Google Cloud Storage.",
                             )
 
                         worker_logger.info(
-                            f"PDF(s) uploaded to {gcs_uris}. Starting AI extraction."
+                            f"PDF(s) uploaded to {gcs_uris}. Starting AI extraction.",
                         )
 
                         # 2. Call Gemini for each chunk to extract structured data
@@ -145,10 +141,14 @@ def _process_brand_guideline_in_background(
                         # or just await if they are async.
                         # Assuming extract_brand_info_from_pdf is synchronous (based on previous usage),
                         # we run it in an executor.
-                        
+
                         loop = asyncio.get_running_loop()
                         tasks = [
-                            loop.run_in_executor(None, gemini_service.extract_brand_info_from_pdf, uri)
+                            loop.run_in_executor(
+                                None,
+                                gemini_service.extract_brand_info_from_pdf,
+                                uri,
+                            )
                             for uri in gcs_uris
                         ]
                         results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -157,22 +157,24 @@ def _process_brand_guideline_in_background(
                         for i, result in enumerate(results):
                             if isinstance(result, Exception):
                                 worker_logger.error(
-                                    f"Extraction for PDF chunk {gcs_uris[i]} failed: {result}"
+                                    f"Extraction for PDF chunk {gcs_uris[i]} failed: {result}",
                                 )
                             elif result:
                                 successful_partial_results.append(result)
 
                         # 3. Aggregate the results
                         extracted_data: BrandGuidelineModel | None = (
-                            gemini_service.aggregate_brand_info(successful_partial_results)
+                            gemini_service.aggregate_brand_info(
+                                successful_partial_results,
+                            )
                         )
 
                         if not extracted_data:
                             worker_logger.error(
-                                f"Failed to extract data from PDF at {gcs_uris}."
+                                f"Failed to extract data from PDF at {gcs_uris}.",
                             )
                             raise Exception(
-                                "AI processing failed to extract data from the PDF."
+                                "AI processing failed to extract data from the PDF.",
                             )
 
                         # 4. Update the final, fully-populated database record
@@ -186,7 +188,7 @@ def _process_brand_guideline_in_background(
                         }
                         await repo.update(guideline_id, update_data)
                         worker_logger.info(
-                            f"Successfully processed brand guideline: {guideline_id}"
+                            f"Successfully processed brand guideline: {guideline_id}",
                         )
 
                     except Exception as e:
@@ -196,7 +198,7 @@ def _process_brand_guideline_in_background(
                                 "json_fields": {
                                     "guideline_id": guideline_id,
                                     "error": str(e),
-                                }
+                                },
                             },
                             exc_info=True,
                         )
@@ -213,16 +215,13 @@ def _process_brand_guideline_in_background(
     except Exception as e:
         worker_logger.error(
             "Brand guideline worker failed to initialize.",
-            extra={
-                "json_fields": {"guideline_id": guideline_id, "error": str(e)}
-            },
+            extra={"json_fields": {"guideline_id": guideline_id, "error": str(e)}},
             exc_info=True,
         )
 
 
 class BrandGuidelineService:
-    """
-    Handles the business logic for creating and managing brand guidelines,
+    """Handles the business logic for creating and managing brand guidelines,
     including PDF processing via background tasks.
     """
 
@@ -244,16 +243,15 @@ class BrandGuidelineService:
     async def _split_and_upload_pdf(
         gcs_service: GcsService,
         file_contents: bytes,
-        workspace_id: Optional[int],
+        workspace_id: int | None,
         original_filename: str,
     ) -> list[str]:
-        """
-        Splits a large PDF into chunks that are under the size limit,
+        """Splits a large PDF into chunks that are under the size limit,
         uploads them to GCS, and returns their GCS URIs.
         """
         file_size = len(file_contents)
-        timestamp = datetime.datetime.now(datetime.timezone.utc).strftime(
-            "%Y%m%d%H%M%S"
+        timestamp = datetime.datetime.now(datetime.UTC).strftime(
+            "%Y%m%d%H%M%S",
         )
         file_uuid = uuid.uuid4()
 
@@ -270,9 +268,7 @@ class BrandGuidelineService:
             return [gcs_uri] if gcs_uri else []
 
         # Splitting is required
-        logger.info(
-            f"PDF size ({file_size} bytes) exceeds limit. Splitting file."
-        )
+        logger.info(f"PDF size ({file_size} bytes) exceeds limit. Splitting file.")
         reader = PdfReader(io.BytesIO(file_contents))
         num_pages = len(reader.pages)
         num_chunks = math.ceil(file_size / GEMINI_PDF_LIMIT_BYTES)
@@ -290,9 +286,7 @@ class BrandGuidelineService:
                 writer.write(chunk_bytes_io)
                 chunk_bytes = chunk_bytes_io.getvalue()
 
-            chunk_filename = (
-                f"{timestamp}-{file_uuid}-part-{i+1}-{original_filename}"
-            )
+            chunk_filename = f"{timestamp}-{file_uuid}-part-{i + 1}-{original_filename}"
             dest_blob_name = (
                 f"brand-guidelines/{workspace_id or 'global'}/{chunk_filename}"
             )
@@ -302,14 +296,12 @@ class BrandGuidelineService:
                     chunk_bytes,
                     destination_blob_name=dest_blob_name,
                     mime_type="application/pdf",
-                )
+                ),
             )
 
         return await asyncio.gather(*upload_tasks)
 
-    async def _delete_guideline_and_assets(
-        self, guideline: BrandGuidelineModel
-    ):
+    async def _delete_guideline_and_assets(self, guideline: BrandGuidelineModel):
         """Deletes a guideline document and all its associated GCS assets."""
         logger.info(f"Deleting old guideline '{guideline.id}' and its assets.")
 
@@ -325,29 +317,27 @@ class BrandGuidelineService:
             await self.repo.delete(guideline.id)
 
     async def _create_brand_guideline_response(
-        self, guideline: BrandGuidelineModel
+        self,
+        guideline: BrandGuidelineModel,
     ) -> BrandGuidelineResponseDto:
-        """
-        Enriches a BrandGuidelineModel with presigned URLs for its assets.
-        """
+        """Enriches a BrandGuidelineModel with presigned URLs for its assets."""
         presigned_url_tasks = [
-            asyncio.to_thread(
-                self.iam_signer_credentials.generate_presigned_url, uri
-            )
+            asyncio.to_thread(self.iam_signer_credentials.generate_presigned_url, uri)
             for uri in guideline.source_pdf_gcs_uris
         ]
         presigned_urls = await asyncio.gather(*presigned_url_tasks)
 
         return BrandGuidelineResponseDto(
-            **guideline.model_dump(), presigned_source_pdf_urls=presigned_urls
+            **guideline.model_dump(),
+            presigned_source_pdf_urls=presigned_urls,
         )
 
     async def generate_signed_upload_url(
-        self, request_dto: GenerateUploadUrlDto, current_user: UserModel
+        self,
+        request_dto: GenerateUploadUrlDto,
+        current_user: UserModel,
     ) -> GenerateUploadUrlResponseDto:
-        """
-        Generates a GCS v4 signed URL for a client-side upload.
-        """
+        """Generates a GCS v4 signed URL for a client-side upload."""
         # Authorize the user for the workspace before generating a URL
         if request_dto.workspace_id:
             workspace = await self.workspace_repo.get_by_id(request_dto.workspace_id)
@@ -373,21 +363,18 @@ class BrandGuidelineService:
                 "Could not generate upload URL.",
             )
 
-        return GenerateUploadUrlResponseDto(
-            upload_url=signed_url, gcs_uri=gcs_uri
-        )
+        return GenerateUploadUrlResponseDto(upload_url=signed_url, gcs_uri=gcs_uri)
 
     async def start_brand_guideline_processing_job(
         self,
         name: str,
-        workspace_id: Optional[int],
+        workspace_id: int | None,
         gcs_uri: str,
         original_filename: str,
         current_user: UserModel,
         executor: ThreadPoolExecutor,
     ) -> BrandGuidelineResponseDto:
-        """
-        Creates a placeholder for a brand guideline and starts the processing
+        """Creates a placeholder for a brand guideline and starts the processing
         in a background job.
         """
         # 1. Authorization Check
@@ -416,15 +403,14 @@ class BrandGuidelineService:
 
         # 2. Check for and delete an existing guideline for the workspace
         if workspace_id:
-            search_dto = BrandGuidelineSearchDto(
-                workspace_id=workspace_id, limit=1
-            )
+            search_dto = BrandGuidelineSearchDto(workspace_id=workspace_id, limit=1)
             existing_guidelines_response = await self.repo.query(
-                search_dto, workspace_id=workspace_id
+                search_dto,
+                workspace_id=workspace_id,
             )
             if existing_guidelines_response.data:
                 await self._delete_guideline_and_assets(
-                    existing_guidelines_response.data[0]
+                    existing_guidelines_response.data[0],
                 )
 
         # 4. Create and save a placeholder document
@@ -447,20 +433,18 @@ class BrandGuidelineService:
         )
 
         logger.info(
-            f"Brand guideline processing job queued: {placeholder_guideline.id}"
+            f"Brand guideline processing job queued: {placeholder_guideline.id}",
         )
 
         # 6. Return the placeholder DTO to the client
-        return await self._create_brand_guideline_response(
-            placeholder_guideline
-        )
+        return await self._create_brand_guideline_response(placeholder_guideline)
 
     async def get_guideline_by_id(
-        self, guideline_id: int, current_user: UserModel
-    ) -> Optional[BrandGuidelineResponseDto]:
-        """
-        Retrieves a single brand guideline and performs an authorization check.
-        """
+        self,
+        guideline_id: int,
+        current_user: UserModel,
+    ) -> BrandGuidelineResponseDto | None:
+        """Retrieves a single brand guideline and performs an authorization check."""
         guideline = await self.repo.get_by_id(guideline_id)
 
         if not guideline:
@@ -491,11 +475,11 @@ class BrandGuidelineService:
         return await self._create_brand_guideline_response(guideline)
 
     async def get_guideline_by_workspace_id(
-        self, workspace_id: int, current_user: UserModel
-    ) -> Optional[BrandGuidelineResponseDto]:
-        """
-        Retrieves the unique brand guideline for a workspace.
-        """
+        self,
+        workspace_id: int,
+        current_user: UserModel,
+    ) -> BrandGuidelineResponseDto | None:
+        """Retrieves the unique brand guideline for a workspace."""
         workspace = await self.workspace_repo.get_by_id(workspace_id)
         if not workspace:
             raise HTTPException(
@@ -505,30 +489,22 @@ class BrandGuidelineService:
 
         if not workspace.scope == WorkspaceScopeEnum.PUBLIC:
             is_system_admin = UserRoleEnum.ADMIN in current_user.roles
-            if (
-                not is_system_admin
-                and current_user.id not in workspace.member_ids
-            ):
+            if not is_system_admin and current_user.id not in workspace.member_ids:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="You are not a member of this workspace.",
                 )
 
         search_dto = BrandGuidelineSearchDto(workspace_id=workspace_id, limit=1)
-        response = await self.repo.query(
-            search_dto, workspace_id=workspace_id
-        )
+        response = await self.repo.query(search_dto, workspace_id=workspace_id)
 
         if not response.data:
             return None
 
         return await self._create_brand_guideline_response(response.data[0])
 
-    async def delete_guideline(
-        self, guideline_id: int, current_user: UserModel
-    ):
-        """
-        Deletes a brand guideline and all its associated assets after an
+    async def delete_guideline(self, guideline_id: int, current_user: UserModel):
+        """Deletes a brand guideline and all its associated assets after an
         authorization check.
         """
         # 1. Fetch the guideline
@@ -536,7 +512,7 @@ class BrandGuidelineService:
         if not guideline:
             # If it doesn't exist, we can consider the deletion successful.
             logger.warning(
-                f"Attempted to delete non-existent guideline with ID: {guideline_id}"
+                f"Attempted to delete non-existent guideline with ID: {guideline_id}",
             )
             return
 
@@ -559,9 +535,7 @@ class BrandGuidelineService:
                     detail="Parent workspace for this guideline not found.",
                 )
 
-            is_workspace_owner = (
-                workspace and current_user.id == workspace.owner_id
-            )
+            is_workspace_owner = workspace and current_user.id == workspace.owner_id
             if not (is_system_admin or is_workspace_owner):
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,

@@ -13,12 +13,13 @@
 # limitations under the License.
 
 from unittest.mock import AsyncMock, MagicMock
+
 import pytest
 from fastapi import HTTPException
 
-from src.users.user_service import UserService
-from src.users.user_model import UserModel, UserRoleEnum
 from src.users.dto.user_create_dto import UserUpdateRoleDto
+from src.users.user_model import UserRoleEnum
+from src.users.user_service import UserService
 
 
 @pytest.fixture
@@ -45,7 +46,9 @@ class TestCreateUserIfNotExists:
 
         # Action: Call service method
         result = await user_service.create_user_if_not_exists(
-            email="user@example.com", name="Regular User", picture=""
+            email="user@example.com",
+            name="Regular User",
+            picture="",
         )
 
         # Assertions
@@ -63,13 +66,15 @@ class TestCreateUserIfNotExists:
 
         # Action: Call service method
         result = await user_service.create_user_if_not_exists(
-            email="new@example.com", name="New User", picture="http://pic.jpg"
+            email="new@example.com",
+            name="New User",
+            picture="http://pic.jpg",
         )
 
         # Assertions
         assert result == mock_user
         mock_user_repo.get_by_email.assert_called_once_with("new@example.com")
-        
+
         # Verify create was called with correct data
         called_args = mock_user_repo.create.call_args[0][0]
         assert called_args["email"] == "new@example.com"
@@ -113,10 +118,15 @@ class TestUpdateUserRole:
         mock_user_repo.get_by_id.assert_called_once_with(1)
 
     @pytest.mark.anyio
-    async def test_prevent_removing_last_admin(self, user_service, mock_user_repo, mock_admin):
+    async def test_prevent_removing_last_admin(
+        self,
+        user_service,
+        mock_user_repo,
+        mock_admin,
+    ):
         # Setup: User IS an admin
         mock_user_repo.get_by_id.return_value = mock_admin
-        
+
         # Mock DB execute to return 1 (only 1 admin left)
         mock_result = MagicMock()
         mock_result.scalar.return_value = 1
@@ -128,12 +138,18 @@ class TestUpdateUserRole:
         # Assertions
         with pytest.raises(HTTPException) as exc_info:
             await user_service.update_user_role(2, role_data)
-            
+
         assert exc_info.value.status_code == 400
         assert "There must be at least 1 admin" in exc_info.value.detail
 
     @pytest.mark.anyio
-    async def test_valid_update(self, user_service, mock_user_repo, mock_user, mock_admin):
+    async def test_valid_update(
+        self,
+        user_service,
+        mock_user_repo,
+        mock_user,
+        mock_admin,
+    ):
         # Setup: User is regular user, becoming admin
         mock_user_repo.get_by_id.return_value = mock_user
         mock_user_repo.update.return_value = mock_admin  # returns updated
@@ -144,5 +160,6 @@ class TestUpdateUserRole:
 
         assert result == mock_admin
         mock_user_repo.update.assert_called_once_with(
-            1, {"roles": [UserRoleEnum.ADMIN.value]}
+            1,
+            {"roles": [UserRoleEnum.ADMIN.value]},
         )

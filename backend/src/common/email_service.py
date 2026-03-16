@@ -39,7 +39,7 @@ class EmailService:
         if not self.sender_email:
             logger.warning(
                 "SENDER_EMAIL not set for Gmail API. "
-                "EmailService will log emails instead of sending."
+                "EmailService will log emails instead of sending.",
             )
 
     def send_workspace_invitation_email(
@@ -49,21 +49,18 @@ class EmailService:
         workspace_name: str,
         workspace_id: int,
     ):
-        """
-        Sends an email to a user inviting them to a workspace using the Gmail API
+        """Sends an email to a user inviting them to a workspace using the Gmail API
         with service account domain-wide delegation.
         If sender credentials are not configured, it will log the email content.
         """
         invitation_url = f"{self.frontend_url}?workspaceId={workspace_id}"
-        subject = (
-            f"You've been invited to join '{workspace_name}' in Creative Studio"
-        )
+        subject = f"You've been invited to join '{workspace_name}' in Creative Studio"
         plain_text_content = f"Hello,\n\n{inviter_name} has invited you to join the workspace '{workspace_name}'.\n\nClick the link below to access the workspace:\n{invitation_url}\n\nThanks,\nThe Creative Studio Team"
 
         if not self.sender_email:
             logger.info("--- SIMULATING EMAIL SEND (due to missing config) ---")
             logger.info(
-                f"To: {recipient_email}\nSubject: {subject}\nBody:\n{plain_text_content}"
+                f"To: {recipient_email}\nSubject: {subject}\nBody:\n{plain_text_content}",
             )
             return
 
@@ -91,9 +88,7 @@ class EmailService:
             message["Subject"] = subject
 
             # 5. Encode the message in base64url format as required by the API
-            encoded_message = base64.urlsafe_b64encode(
-                message.as_bytes()
-            ).decode()
+            encoded_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
 
             create_message = {"raw": encoded_message}
 
@@ -104,15 +99,13 @@ class EmailService:
                 .send(userId="me", body=create_message)
                 .execute()
             )
-            logger.info(
-                f'Message Id: {send_message["id"]} sent to {recipient_email}'
-            )
+            logger.info(f"Message Id: {send_message['id']} sent to {recipient_email}")
 
         except HttpError as error:
             logger.error(
-                f"An error occurred sending email to {recipient_email}: {error}"
+                f"An error occurred sending email to {recipient_email}: {error}",
             )
         except Exception as e:  # Catch other potential errors like auth issues
             logger.error(
-                f"Failed to send workspace invitation email to {recipient_email}: {e}"
+                f"Failed to send workspace invitation email to {recipient_email}: {e}",
             )

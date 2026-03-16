@@ -1,16 +1,33 @@
+# Copyright 2026 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from unittest.mock import AsyncMock, MagicMock
 
-from src.workflows.workflow_controller import router
 from src.auth.auth_guard import get_current_user
-from src.workflows.workflow_service import WorkflowService
 from src.users.user_model import UserModel
+from src.workflows.workflow_controller import router
+from src.workflows.workflow_service import WorkflowService
+
 
 @pytest.fixture
 def mock_user():
     return UserModel(id=1, email="test@example.com", name="Test User", roles=["user"])
+
 
 @pytest.fixture
 def mock_service():
@@ -32,25 +49,33 @@ def mock_service():
 def client(mock_user, mock_service):
     app = FastAPI()
     app.include_router(router)
-    
+
     app.dependency_overrides[get_current_user] = lambda: mock_user
     app.dependency_overrides[WorkflowService] = lambda: mock_service
 
     return TestClient(app)
 
+
 def test_search_workflows_success(client, mock_service):
     from src.common.dto.pagination_response_dto import PaginationResponseDto
+
     # Provide complete fields for WorkflowModel
     mock_item = {"id": "wf1", "name": "WF", "user_id": 1, "steps": []}
-    mock_response = PaginationResponseDto(count=1, data=[mock_item], page=1, page_size=10, total_pages=1)
+    mock_response = PaginationResponseDto(
+        count=1,
+        data=[mock_item],
+        page=1,
+        page_size=10,
+        total_pages=1,
+    )
     mock_service.query_workflows.return_value = mock_response
-
 
     payload = {"limit": 10, "offset": 0}
     response = client.post("/api/workflows/search", json=payload)
 
     assert response.status_code == 200
     mock_service.query_workflows.assert_called_once()
+
 
 def test_create_workflow_success(client, mock_service):
     mock_workflow = {"id": "wf1", "name": "WF", "steps": []}
@@ -65,6 +90,7 @@ def test_create_workflow_success(client, mock_service):
     assert response.status_code == 201
     mock_service.create_workflow.assert_called_once()
 
+
 def test_get_workflow_success(client, mock_service):
     mock_workflow = {"id": "wf1", "name": "WF", "user_id": 1, "steps": []}
     mock_service.get_workflow.return_value = mock_workflow
@@ -74,12 +100,14 @@ def test_get_workflow_success(client, mock_service):
     assert response.status_code == 200
     assert response.json()["id"] == "wf1"
 
+
 def test_get_workflow_not_found(client, mock_service):
     mock_service.get_workflow.return_value = None
 
     response = client.get("/api/workflows/absent")
 
     assert response.status_code == 404
+
 
 def test_execute_workflow_success(client, mock_service):
     mock_service.execute_workflow.return_value = "exec_id_123"
@@ -90,6 +118,7 @@ def test_execute_workflow_success(client, mock_service):
 
     assert response.status_code == 200
     assert response.json()["execution_id"] == "exec_id_123"
+
 
 def test_update_workflow_success(client, mock_service):
     mock_workflow = MagicMock()
@@ -105,6 +134,7 @@ def test_update_workflow_success(client, mock_service):
     assert response.status_code == 200
     assert response.json()["name"] == "Updated"
 
+
 def test_delete_workflow_success(client, mock_service):
     mock_workflow = MagicMock()
     mock_workflow.user_id = 1
@@ -115,16 +145,21 @@ def test_delete_workflow_success(client, mock_service):
 
     assert response.status_code == 204
 
+
 def test_get_execution_success(client, mock_service):
     mock_workflow = MagicMock()
     mock_workflow.user_id = 1
     mock_service.get_workflow.return_value = mock_workflow
-    mock_service.get_execution_details.return_value = {"execution_id": "exec1", "status": "running"}
+    mock_service.get_execution_details.return_value = {
+        "execution_id": "exec1",
+        "status": "running",
+    }
 
     response = client.get("/api/workflows/wf1/executions/exec1")
 
     assert response.status_code == 200
     assert response.json()["execution_id"] == "exec1"
+
 
 def test_list_executions_success(client, mock_service):
     mock_workflow = MagicMock()
@@ -136,4 +171,3 @@ def test_list_executions_success(client, mock_service):
 
     assert response.status_code == 200
     assert len(response.json()) == 1
-

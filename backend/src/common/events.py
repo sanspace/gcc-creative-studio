@@ -12,23 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from sqlalchemy import event
-from sqlalchemy.orm import Session, with_loader_criteria
 import logging
 
-from src.users.user_model import User
+from sqlalchemy import event
+from sqlalchemy.orm import Session, with_loader_criteria
+
 from src.common.schema.media_item_model import MediaItem
 from src.source_assets.schema.source_asset_model import SourceAsset
+from src.users.user_model import User
 
 logger = logging.getLogger(__name__)
 
+
 @event.listens_for(Session, "do_orm_execute")
 def _add_soft_delete_criteria(execute_state):
-    """
-    Event listener to automatically filter out soft-deleted Users and MediaItems.
-    """
+    """Event listener to automatically filter out soft-deleted Users and MediaItems."""
     include_deleted = execute_state.execution_options.get("include_deleted", False)
-    
+
     # Only apply to SELECT statements
     if not execute_state.is_select:
         return
@@ -42,19 +42,19 @@ def _add_soft_delete_criteria(execute_state):
             User,
             lambda cls: cls.deleted_at.is_(None),
             include_aliases=True,
-            propagate_to_loaders=True
+            propagate_to_loaders=True,
         ),
         with_loader_criteria(
             MediaItem,
             lambda cls: cls.deleted_at.is_(None),
             include_aliases=True,
-            propagate_to_loaders=True
+            propagate_to_loaders=True,
         ),
         with_loader_criteria(
             SourceAsset,
             lambda cls: cls.deleted_at.is_(None),
             include_aliases=True,
-            propagate_to_loaders=True
-        )
+            propagate_to_loaders=True,
+        ),
     )
     logger.debug("Applied soft delete criteria for User and MediaItem")

@@ -30,7 +30,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from src.audios.audio_controller import router as audio_router
-from src.auth import firebase_client_service
 from src.brand_guidelines.brand_guideline_controller import (
     router as brand_guideline_router,
 )
@@ -48,13 +47,12 @@ from src.source_assets.source_asset_controller import (
 )
 from src.users.user_controller import router as user_router
 from src.videos.veo_controller import router as video_router
-
+from src.workbench.router import router as workbench_router
 from src.workflows.workflow_controller import router as workflow_router
 from src.workflows_executor.workflows_executor_controller import (
     router as workflows_executor_router,
 )
 from src.workspaces.workspace_controller import router as workspace_router
-from src.workbench.router import router as workbench_router
 
 
 def configure_cors(app):
@@ -65,15 +63,13 @@ def configure_cors(app):
     if environment == "production":
         frontend_url = getenv("FRONTEND_URL")
         if not frontend_url:
-            raise ValueError(
-                "FRONTEND_URL environment variable not set in production"
-            )
+            raise ValueError("FRONTEND_URL environment variable not set in production")
         allowed_origins.append(frontend_url)
     elif environment in ["development", "test", "local"]:
         allowed_origins.append("*")  # Allow all origins in development
     else:
         raise ValueError(
-            f"Invalid ENVIRONMENT: {environment}. Must be 'production', 'development' or 'local'"
+            f"Invalid ENVIRONMENT: {environment}. Must be 'production', 'development' or 'local'",
         )
 
     app.add_middleware(
@@ -87,16 +83,16 @@ def configure_cors(app):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """
-    Lifespan context manager for the FastAPI application.
+    """Lifespan context manager for the FastAPI application.
     Handles startup and shutdown logic.
     """
     # --- Startup ---
     logger.info("Starting up application...")
-    
+
     # Initialize Firebase Admin SDK (Auth only)
     try:
         from src.auth.firebase_client_service import firebase_client
+
         # Trigger initialization
         _ = firebase_client
     except Exception as e:
@@ -105,6 +101,7 @@ async def lifespan(app: FastAPI):
     # Run Database Migrations
     try:
         from src.database_migrations import run_pending_migrations
+
         await run_pending_migrations()
     except Exception as e:
         logger.error(f"Failed to run database migrations: {e}")
@@ -123,6 +120,7 @@ async def lifespan(app: FastAPI):
     app.state.executor.shutdown(wait=True)
     # Your shutdown logic here, e.g., closing database connections
 
+
 app = FastAPI(
     lifespan=lifespan,
     title="Creative Studio API",
@@ -133,8 +131,7 @@ app = FastAPI(
 
 @app.exception_handler(Exception)
 async def generic_exception_handler(request: Request, exc: Exception):
-    """
-    This is the global 'catch-all' exception handler.
+    """This is the global 'catch-all' exception handler.
     It catches any exception that is not specifically handled by other exception handlers.
     """
     # Log the full error for debugging purposes

@@ -13,12 +13,13 @@
 # limitations under the License.
 
 from unittest.mock import AsyncMock
+
 import pytest
 from fastapi import status
 
 from main import app
+from src.workspaces.schema.workspace_model import WorkspaceModel
 from src.workspaces.workspace_service import WorkspaceService
-from src.workspaces.schema.workspace_model import WorkspaceModel, WorkspaceRoleEnum
 
 
 @pytest.fixture
@@ -39,13 +40,20 @@ def override_workspace_service(mock_workspace_service):
 class TestCreateWorkspace:
     """Tests for POST /api/workspaces."""
 
-    def test_create_workspace_success(self, api_client, mock_workspace_service, mock_user):
-        mock_workspace = WorkspaceModel(id=1, name="My Workspace", owner_id=mock_user.id)
+    def test_create_workspace_success(
+        self,
+        api_client,
+        mock_workspace_service,
+        mock_user,
+    ):
+        mock_workspace = WorkspaceModel(
+            id=1,
+            name="My Workspace",
+            owner_id=mock_user.id,
+        )
         mock_workspace_service.create_workspace.return_value = mock_workspace
 
-        response = api_client.post(
-            "/api/workspaces", json={"name": "My Workspace"}
-        )
+        response = api_client.post("/api/workspaces", json={"name": "My Workspace"})
 
         assert response.status_code == status.HTTP_201_CREATED
         data = response.json()
@@ -56,7 +64,12 @@ class TestCreateWorkspace:
 class TestListMyWorkspaces:
     """Tests for GET /api/workspaces."""
 
-    def test_list_my_workspaces_success(self, api_client, mock_workspace_service, mock_user):
+    def test_list_my_workspaces_success(
+        self,
+        api_client,
+        mock_workspace_service,
+        mock_user,
+    ):
         workspace = WorkspaceModel(id=1, name="Work 1", owner_id=mock_user.id)
         mock_workspace_service.list_workspaces_for_user.return_value = [workspace]
 
@@ -76,7 +89,8 @@ class TestInviteUser:
         mock_workspace_service.invite_user_to_workspace.return_value = workspace
 
         response = api_client.post(
-            "/api/workspaces/1/invites", json={"email": "guest@example.com", "role": "viewer"}
+            "/api/workspaces/1/invites",
+            json={"email": "guest@example.com", "role": "viewer"},
         )
 
         assert response.status_code == status.HTTP_200_OK
@@ -87,7 +101,8 @@ class TestInviteUser:
         mock_workspace_service.invite_user_to_workspace.return_value = None
 
         response = api_client.post(
-            "/api/workspaces/1/invites", json={"email": "unknown@example.com", "role": "viewer"}
+            "/api/workspaces/1/invites",
+            json={"email": "unknown@example.com", "role": "viewer"},
         )
 
         assert response.status_code == status.HTTP_404_NOT_FOUND

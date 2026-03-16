@@ -12,8 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, Literal, Optional
+from typing import Literal
+
 from pydantic import BaseModel
+
 
 class Clip(BaseModel):
     assetId: str
@@ -22,10 +24,11 @@ class Clip(BaseModel):
     duration: float
     offset: float
     trackIndex: int
-    type: Literal['video', 'audio']
+    type: Literal["video", "audio"]
+
 
 class TimelineRequest(BaseModel):
-    clips: List[Clip]
+    clips: list[Clip]
     output_format: str = "mp4"
-    width: Optional[int] = 1920
-    height: Optional[int] = 1080
+    width: int | None = 1920
+    height: int | None = 1080

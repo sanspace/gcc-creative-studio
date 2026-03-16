@@ -1,3 +1,4 @@
+#!/bin/bash
 # Copyright 2026 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,16 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from fastapi import Depends
-from sqlalchemy.ext.asyncio import AsyncSession
+if [ "$#" -gt 0 ]; then
+  docker compose run -T --rm pre-commit run --files "$@"
+else
+  docker compose run -T --rm pre-commit run
+fi
 
-from src.common.base_repository import BaseStringRepository
-from src.database import get_db
-from src.workflows.schema.workflow_run_model import WorkflowRun, WorkflowRunModel
-
-
-class WorkflowRunRepository(BaseStringRepository[WorkflowRun, WorkflowRunModel]):
-    """Repository for WorkflowRun."""
-
-    def __init__(self, db: AsyncSession = Depends(get_db)):
-        super().__init__(WorkflowRun, WorkflowRunModel, db)

@@ -12,13 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List
+
 from pydantic import BaseModel
+
 
 class BulkDeleteItemDto(BaseModel):
     id: int
     type: str
 
+
 class BulkDeleteDto(BaseModel):
-    items: List[BulkDeleteItemDto]
+    items: list[BulkDeleteItemDto]
     workspace_id: int

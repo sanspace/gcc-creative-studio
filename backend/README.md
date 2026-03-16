@@ -90,6 +90,11 @@ To maintain code quality and consistency:
     ```
 
 
+
+### 🛡️ Automatic Checks with Pre-commit
+
+To guarantee style standards compliance automatically on every commit, we use a fully containerized `pre-commit` setup. Please see the [Main README](../README.md#🛡️-automatic-checks-with-pre-commit-recommended) for installation instructions to link it to your `git commit` hooks.
+
 ## 🧪 Running Tests
 
 We use `pytest` for testing and `pytest-cov` for coverage reporting. The project uses `uv` for package management, so tests should be executed within the virtual environment.

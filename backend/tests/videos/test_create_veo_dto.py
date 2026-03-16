@@ -15,9 +15,12 @@
 import pytest
 from pydantic import ValidationError
 
+from src.common.base_dto import (
+    GenerationModelEnum,
+    ReferenceImageTypeEnum,
+)
+from src.common.schema.media_item_model import SourceMediaItemLink
 from src.videos.dto.create_veo_dto import CreateVeoDto, ReferenceImageDto
-from src.common.base_dto import GenerationModelEnum, AspectRatioEnum, ReferenceImageTypeEnum
-from src.common.schema.media_item_model import AssetRoleEnum, SourceMediaItemLink
 
 
 def test_create_veo_dto_valid():
@@ -25,18 +28,14 @@ def test_create_veo_dto_valid():
         prompt="Test",
         workspace_id=1,
         generation_model=GenerationModelEnum.VEO_3_QUALITY,
-        aspect_ratio="16:9"
+        aspect_ratio="16:9",
     )
     assert dto.prompt == "Test"
 
 
 def test_validate_video_aspect_ratio_error():
     with pytest.raises(ValidationError) as exc_info:
-        CreateVeoDto(
-            prompt="Test",
-            workspace_id=1,
-            aspect_ratio="1:1"  # Invalid
-        )
+        CreateVeoDto(prompt="Test", workspace_id=1, aspect_ratio="1:1")  # Invalid
     assert "Invalid aspect ratio for video" in str(exc_info.value)
 
 
@@ -46,8 +45,12 @@ def test_validate_source_media_items_invalid_role():
             prompt="Test",
             workspace_id=1,
             source_media_items=[
-                SourceMediaItemLink(media_item_id=1, media_index=0, role="invalid_role")
-            ]
+                SourceMediaItemLink(
+                    media_item_id=1,
+                    media_index=0,
+                    role="invalid_role",
+                ),
+            ],
         )
     # Pydantic validation error or enum validation error
     assert "invalid_role" in str(exc_info.value)
@@ -58,11 +61,14 @@ def test_validate_source_media_items_model_conflict():
         CreateVeoDto(
             prompt="Test",
             workspace_id=1,
-            generation_model=GenerationModelEnum.VEO_3_QUALITY, 
+            generation_model=GenerationModelEnum.VEO_3_QUALITY,
             reference_images=[
-                ReferenceImageDto(asset_id=1, reference_type=ReferenceImageTypeEnum.ASSET)
+                ReferenceImageDto(
+                    asset_id=1,
+                    reference_type=ReferenceImageTypeEnum.ASSET,
+                ),
             ],
-            source_media_items=[] # Force validator to run
+            source_media_items=[],  # Force validator to run
         )
     assert "Reference images are only supported by" in str(exc_info.value)
 
@@ -75,19 +81,20 @@ def test_validate_source_media_items_conflicting_inputs():
             generation_model=GenerationModelEnum.VEO_3_1_PREVIEW,
             start_image_asset_id=1,
             reference_images=[
-                ReferenceImageDto(asset_id=2, reference_type=ReferenceImageTypeEnum.ASSET)
+                ReferenceImageDto(
+                    asset_id=2,
+                    reference_type=ReferenceImageTypeEnum.ASSET,
+                ),
             ],
-            source_media_items=[] # Force validator to run
+            source_media_items=[],  # Force validator to run
         )
     assert "Reference images cannot be used at the same time" in str(exc_info.value)
 
 
-
 def test_validate_video_generation_model_error():
     with pytest.raises(ValidationError) as exc_info:
-        CreateVeoDto(
-            prompt="Test",
-            workspace_id=1,
-            generation_model="invalid_model"
-        )
-    assert "Invalid generation model for video" in str(exc_info.value) or "enum" in str(exc_info.value).lower()
+        CreateVeoDto(prompt="Test", workspace_id=1, generation_model="invalid_model")
+    assert (
+        "Invalid generation model for video" in str(exc_info.value)
+        or "enum" in str(exc_info.value).lower()
+    )

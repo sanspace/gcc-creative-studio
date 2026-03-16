@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional
 
 from pydantic import Field, model_validator
 
@@ -22,24 +21,22 @@ from src.common.base_dto import BaseDto
 class VtoSourceMediaItemLink(BaseDto):
     """A link to a previously generated media item to be used as a VTO input."""
 
-    media_item_id: int = Field(
-        description="The ID of the source MediaItemModel."
-    )
+    media_item_id: int = Field(description="The ID of the source MediaItemModel.")
     media_index: int = Field(
-        description="The index of the image within the parent's `gcs_uris` list."
+        description="The index of the image within the parent's `gcs_uris` list.",
     )
 
 
 class VtoInputLink(BaseDto):
-    """
-    A flexible link that can point to either an uploaded source asset
+    """A flexible link that can point to either an uploaded source asset
     or a previously generated media item.
     """
 
-    source_asset_id: Optional[int] = Field(
-        default=None, description="The ID of the source asset to use."
+    source_asset_id: int | None = Field(
+        default=None,
+        description="The ID of the source asset to use.",
     )
-    source_media_item: Optional[VtoSourceMediaItemLink] = Field(
+    source_media_item: VtoSourceMediaItemLink | None = Field(
         default=None,
         description="The previously generated media item to use.",
     )
@@ -51,7 +48,7 @@ class VtoInputLink(BaseDto):
             not self.source_asset_id and not self.source_media_item
         ):
             raise ValueError(
-                "Exactly one of 'source_asset_id' or 'source_media_item' must be provided for each input."
+                "Exactly one of 'source_asset_id' or 'source_media_item' must be provided for each input.",
             )
         return self
 
@@ -60,7 +57,8 @@ class VtoDto(BaseDto):
     """Request schema for Virtual Try-On image generation."""
 
     workspace_id: int = Field(
-        ge=1, description="The ID of the workspace for this generation."
+        ge=1,
+        description="The ID of the workspace for this generation.",
     )
     number_of_media: int = Field(
         default=1,
@@ -69,19 +67,23 @@ class VtoDto(BaseDto):
         description="Number of images to generate (between 1 and 4).",
     )
     person_image: VtoInputLink = Field(
-        description="The input image of the person for try-on."
+        description="The input image of the person for try-on.",
     )
-    top_image: Optional[VtoInputLink] = Field(
-        default=None, description="The input for the top clothing item."
+    top_image: VtoInputLink | None = Field(
+        default=None,
+        description="The input for the top clothing item.",
     )
-    bottom_image: Optional[VtoInputLink] = Field(
-        default=None, description="The input for the bottom clothing item."
+    bottom_image: VtoInputLink | None = Field(
+        default=None,
+        description="The input for the bottom clothing item.",
     )
-    dress_image: Optional[VtoInputLink] = Field(
-        default=None, description="The input for the dress."
+    dress_image: VtoInputLink | None = Field(
+        default=None,
+        description="The input for the dress.",
     )
-    shoe_image: Optional[VtoInputLink] = Field(
-        default=None, description="The input for the shoes."
+    shoe_image: VtoInputLink | None = Field(
+        default=None,
+        description="The input for the shoes.",
     )
 
     @model_validator(mode="after")
@@ -93,9 +95,9 @@ class VtoDto(BaseDto):
                 self.bottom_image,
                 self.dress_image,
                 self.shoe_image,
-            ]
+            ],
         ):
             raise ValueError(
-                "At least one garment (top, bottom, dress, or shoe) must be provided for Virtual Try-On."
+                "At least one garment (top, bottom, dress, or shoe) must be provided for Virtual Try-On.",
             )
         return self

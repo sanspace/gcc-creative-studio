@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional
+
+from fastapi import Depends
 
 from src.common.dto.pagination_response_dto import PaginationResponseDto
 from src.users.dto.user_create_dto import UserCreateDto, UserUpdateRoleDto
@@ -21,25 +22,21 @@ from src.users.repository.user_repository import UserRepository
 from src.users.user_model import UserModel, UserRoleEnum
 
 
-
-from fastapi import Depends
-
 class UserService:
-    """
-    Handles the business logic for user management.
-    """
+    """Handles the business logic for user management."""
 
     def __init__(self, user_repo: UserRepository = Depends()):
         self.user_repo = user_repo
 
     async def create_user_if_not_exists(
-        self, email: str, name: str, picture: Optional[str]
+        self,
+        email: str,
+        name: str,
+        picture: str | None,
     ) -> UserModel:
-        """
-        Retrieves a user by their email. If the user exists, it returns it.
+        """Retrieves a user by their email. If the user exists, it returns it.
         If the user doesn't exist, it creates a new user document.
         """
-
         # 1. Check if the user already exists in the database.
         existing_user = await self.user_repo.get_by_email(email)
 
@@ -53,7 +50,7 @@ class UserService:
             name=name,
             picture=picture or "",
         )
-        
+
         # We need to ensure roles are set, but UserCreateDto doesn't have roles.
         # The repository create method takes a Pydantic model or dict.
         # If we pass UserCreateDto, we miss 'roles'.
@@ -64,17 +61,18 @@ class UserService:
         # 3. Call the repository's create() method
         return await self.user_repo.create(user_data)
 
-    async def get_user_by_id(self, user_id: int) -> Optional[UserModel]:
+    async def get_user_by_id(self, user_id: int) -> UserModel | None:
         """Finds a single user by their ID."""
         return await self.user_repo.get_by_id(user_id)
 
     async def find_all_users(
-        self, search_dto: UserSearchDto
+        self,
+        search_dto: UserSearchDto,
     ) -> PaginationResponseDto[UserModel]:
         """Retrieves a paginated list of all users."""
         return await self.user_repo.query(search_dto)
 
-    async def delete_user(self, user_id: int, deleted_by: Optional[int] = None) -> bool:
+    async def delete_user(self, user_id: int, deleted_by: int | None = None) -> bool:
         """Soft deletes a user."""
         return await self.user_repo.soft_delete(user_id, deleted_by=deleted_by)
 
@@ -83,12 +81,15 @@ class UserService:
         return await self.user_repo.restore(user_id)
 
     async def update_user_role(
-        self, user_id: int, role_data: UserUpdateRoleDto
-    ) -> Optional[UserModel]:
+        self,
+        user_id: int,
+        role_data: UserUpdateRoleDto,
+    ) -> UserModel | None:
         """Updates the role of a specific user with safeties."""
-        from sqlalchemy import select, func
-        from src.users.user_model import User
         from fastapi import HTTPException
+        from sqlalchemy import func, select
+
+        from src.users.user_model import User
 
         existing_user = await self.user_repo.get_by_id(user_id)
         if not existing_user:
@@ -98,15 +99,18 @@ class UserService:
         will_be_admin = "admin" in [role.value for role in role_data.roles]
 
         if was_admin and not will_be_admin:
-            admin_query = select(func.count()).select_from(User).where(User.roles.contains(["admin"]))
+            admin_query = (
+                select(func.count())
+                .select_from(User)
+                .where(User.roles.contains(["admin"]))
+            )
             admin_count_result = await self.user_repo.db.execute(admin_query)
             admin_count = admin_count_result.scalar() or 0
             if admin_count <= 1:
                 raise HTTPException(
                     status_code=400,
-                    detail="There must be at least 1 admin on the app."
+                    detail="There must be at least 1 admin on the app.",
                 )
 
         roles_as_strings = [role.value for role in role_data.roles]
         return await self.user_repo.update(user_id, {"roles": roles_as_strings})
-

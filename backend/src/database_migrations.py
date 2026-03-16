@@ -14,8 +14,7 @@
 
 import asyncio
 import logging
-import subprocess
-from sqlalchemy import text
+
 from src.database import get_connection
 
 logger = logging.getLogger(__name__)
@@ -25,9 +24,9 @@ logger = logging.getLogger(__name__)
 # The ID is arbitrary but must be consistent across all instances.
 MIGRATION_LOCK_ID = 42
 
+
 async def run_pending_migrations():
-    """
-    Acquires a Postgres advisory lock and runs Alembic migrations.
+    """Acquires a Postgres advisory lock and runs Alembic migrations.
     This ensures that only one instance runs migrations at a time.
     """
     logger.info("Attempting to run pending database migrations...")
@@ -41,9 +40,9 @@ async def run_pending_migrations():
         # BUT get_connection returns the raw asyncpg connection from the Connector?
         # Let's check src/database.py again.
         # get_connection returns `conn` from `connector.connect_async`, which IS an asyncpg connection.
-        
+
         conn = await get_connection()
-        
+
         # Acquire advisory lock
         # pg_advisory_lock waits until the lock is available.
         # We use transaction-level lock or session-level?
@@ -56,24 +55,29 @@ async def run_pending_migrations():
         # We use subprocess to avoid event loop conflicts with the running app
         # and to ensure a clean environment for Alembic.
         # Resolve alembic executable path relative to the current python interpreter
-        import sys
         import os
+        import sys
+
         alembic_cmd = os.path.join(os.path.dirname(sys.executable), "alembic")
-        
+
         logger.info(f"Running '{alembic_cmd} upgrade head'...")
         process = await asyncio.create_subprocess_exec(
-            alembic_cmd, "upgrade", "head",
+            alembic_cmd,
+            "upgrade",
+            "head",
             stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
+            stderr=asyncio.subprocess.PIPE,
         )
-        
+
         stdout, stderr = await process.communicate()
 
         if process.returncode == 0:
             # Combine stdout and stderr to check for migration actions
             # Alembic often logs to stderr by default
-            full_output = (stdout.decode() if stdout else "") + (stderr.decode() if stderr else "")
-            
+            full_output = (stdout.decode() if stdout else "") + (
+                stderr.decode() if stderr else ""
+            )
+
             if "Running upgrade" in full_output:
                 logger.info("Migrations applied successfully.")
                 logger.info(f"Alembic Output:\n{full_output.strip()}")

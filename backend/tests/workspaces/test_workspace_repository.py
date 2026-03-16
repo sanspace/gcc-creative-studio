@@ -12,11 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
+
 import pytest
 
 from src.workspaces.repository.workspace_repository import WorkspaceRepository
-from src.workspaces.schema.workspace_model import WorkspaceScopeEnum
 
 
 @pytest.fixture
@@ -73,11 +73,20 @@ class TestWorkspaceRepository:
 
     @pytest.mark.anyio
     async def test_get_public_workspace_success(self, workspace_repo, db_session_mock):
-        from src.workspaces.schema.workspace_model import Workspace
         import datetime
-        now = datetime.datetime.now(datetime.timezone.utc)
+
+        from src.workspaces.schema.workspace_model import Workspace
+
+        now = datetime.datetime.now(datetime.UTC)
         mock_result = MagicMock()
-        mock_asset = Workspace(id=1, name="Public", owner_id=1, scope="public", created_at=now, updated_at=now)
+        mock_asset = Workspace(
+            id=1,
+            name="Public",
+            owner_id=1,
+            scope="public",
+            created_at=now,
+            updated_at=now,
+        )
         mock_result.scalar_one_or_none.return_value = mock_asset
         db_session_mock.execute.return_value = mock_result
 
@@ -86,12 +95,25 @@ class TestWorkspaceRepository:
         assert response.name == "Public"
 
     @pytest.mark.anyio
-    async def test_get_all_public_workspaces_success(self, workspace_repo, db_session_mock):
-        from src.workspaces.schema.workspace_model import Workspace
+    async def test_get_all_public_workspaces_success(
+        self,
+        workspace_repo,
+        db_session_mock,
+    ):
         import datetime
-        now = datetime.datetime.now(datetime.timezone.utc)
+
+        from src.workspaces.schema.workspace_model import Workspace
+
+        now = datetime.datetime.now(datetime.UTC)
         mock_result = MagicMock()
-        mock_asset = Workspace(id=2, name="Public 2", owner_id=1, scope="public", created_at=now, updated_at=now)
+        mock_asset = Workspace(
+            id=2,
+            name="Public 2",
+            owner_id=1,
+            scope="public",
+            created_at=now,
+            updated_at=now,
+        )
         mock_result.scalars().all.return_value = [mock_asset]
         db_session_mock.execute.return_value = mock_result
 
@@ -101,11 +123,20 @@ class TestWorkspaceRepository:
 
     @pytest.mark.anyio
     async def test_find_by_member_id_success(self, workspace_repo, db_session_mock):
-        from src.workspaces.schema.workspace_model import Workspace
         import datetime
-        now = datetime.datetime.now(datetime.timezone.utc)
+
+        from src.workspaces.schema.workspace_model import Workspace
+
+        now = datetime.datetime.now(datetime.UTC)
         mock_result = MagicMock()
-        mock_asset = Workspace(id=3, name="Member workspace", owner_id=1, scope="private", created_at=now, updated_at=now)
+        mock_asset = Workspace(
+            id=3,
+            name="Member workspace",
+            owner_id=1,
+            scope="private",
+            created_at=now,
+            updated_at=now,
+        )
         mock_result.scalars().all.return_value = [mock_asset]
         db_session_mock.execute.return_value = mock_result
 
@@ -115,35 +146,67 @@ class TestWorkspaceRepository:
 
     @pytest.mark.anyio
     async def test_create_with_members_success(self, workspace_repo, db_session_mock):
-        from src.workspaces.schema.workspace_model import WorkspaceMember, WorkspaceModel
         import datetime
-        now = datetime.datetime.now(datetime.timezone.utc)
-        mock_schema = WorkspaceModel(id=10, name="New Space", owner_id=1, scope="private", created_at=now, updated_at=now)
-        initial_members = [WorkspaceMember(user_id=2, role="editor", email="test@editor.com")]
 
-        response = await workspace_repo.create(schema=mock_schema, initial_members=initial_members)
+        from src.workspaces.schema.workspace_model import (
+            WorkspaceMember,
+            WorkspaceModel,
+        )
+
+        now = datetime.datetime.now(datetime.UTC)
+        mock_schema = WorkspaceModel(
+            id=10,
+            name="New Space",
+            owner_id=1,
+            scope="private",
+            created_at=now,
+            updated_at=now,
+        )
+        initial_members = [
+            WorkspaceMember(user_id=2, role="editor", email="test@editor.com"),
+        ]
+
+        response = await workspace_repo.create(
+            schema=mock_schema,
+            initial_members=initial_members,
+        )
         assert response is not None
 
     @pytest.mark.anyio
-    async def test_add_member_to_workspace_success(self, workspace_repo, db_session_mock):
-        from src.workspaces.schema.workspace_model import WorkspaceMember, Workspace
+    async def test_add_member_to_workspace_success(
+        self,
+        workspace_repo,
+        db_session_mock,
+    ):
         import datetime
-        now = datetime.datetime.now(datetime.timezone.utc)
+
+        from src.workspaces.schema.workspace_model import Workspace, WorkspaceMember
+
+        now = datetime.datetime.now(datetime.UTC)
         mock_result = MagicMock()
-        mock_asset = Workspace(id=20, name="Space", owner_id=1, scope="private", created_at=now, updated_at=now)
-        mock_asset.members = [] 
+        mock_asset = Workspace(
+            id=20,
+            name="Space",
+            owner_id=1,
+            scope="private",
+            created_at=now,
+            updated_at=now,
+        )
+        mock_asset.members = []
         mock_result.scalar_one_or_none.return_value = mock_asset
         db_session_mock.execute.return_value = mock_result
 
-        member_to_add = WorkspaceMember(user_id=5, role="viewer", email="test@viewer.com")
+        member_to_add = WorkspaceMember(
+            user_id=5,
+            role="viewer",
+            email="test@viewer.com",
+        )
         response = await workspace_repo.add_member_to_workspace(
-            workspace_id=20, member=member_to_add, user_id=5
+            workspace_id=20,
+            member=member_to_add,
+            user_id=5,
         )
 
         assert response is not None
         assert len(mock_asset.members) == 1
         db_session_mock.commit.assert_called_once()
-
-
-
-

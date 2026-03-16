@@ -13,8 +13,7 @@
 # limitations under the License.
 
 import datetime
-import uuid
-from typing import Any, Dict, Generic, List, Optional, Type, TypeVar, Union
+from typing import Any, Generic, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
@@ -24,20 +23,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 # Define generic types for SQLAlchemy Model and Pydantic Schema
 ModelType = TypeVar("ModelType", bound=Any)
 SchemaType = TypeVar("SchemaType", bound=BaseModel)
-IDType = TypeVar("IDType", bound=Union[int, str])
+IDType = TypeVar("IDType", bound=int | str)
 
 
 class BaseDocumentMixin(BaseModel, Generic[IDType]):
-    """
-    Base Pydantic model for all schemas.
+    """Base Pydantic model for all schemas.
     Now generic over IDType to enforce strict int or str IDs.
     """
+
     id: IDType
     created_at: datetime.datetime = Field(
-        default_factory=lambda: datetime.datetime.now(datetime.timezone.utc)
+        default_factory=lambda: datetime.datetime.now(datetime.UTC),
     )
     updated_at: datetime.datetime = Field(
-        default_factory=lambda: datetime.datetime.now(datetime.timezone.utc)
+        default_factory=lambda: datetime.datetime.now(datetime.UTC),
     )
 
     # Pydantic v2 configuration for this sub-model
@@ -61,30 +60,40 @@ class BaseStringDocument(BaseDocumentMixin[str]):
 
 
 class BaseRepositoryMixin(Generic[ModelType, SchemaType, IDType]):
-    """
-    A generic repository mixin for common SQLAlchemy operations.
+    """A generic repository mixin for common SQLAlchemy operations.
     Generic over IDType to enforce strict types.
     """
 
-    def __init__(self, model: Type[ModelType], schema: Type[SchemaType], db: AsyncSession):
+    def __init__(
+        self,
+        model: type[ModelType],
+        schema: type[SchemaType],
+        db: AsyncSession,
+    ):
         self.model = model
         self.schema = schema
         self.db = db
 
-    async def get_by_id(self, item_id: IDType, include_deleted: bool = False) -> Optional[SchemaType]:
+    async def get_by_id(
+        self,
+        item_id: IDType,
+        include_deleted: bool = False,
+    ) -> SchemaType | None:
         """Retrieves a single document by its ID, excluding soft-deleted ones."""
-        query = select(self.model).where(self.model.id == item_id).execution_options(include_deleted=include_deleted)
-            
+        query = (
+            select(self.model)
+            .where(self.model.id == item_id)
+            .execution_options(include_deleted=include_deleted)
+        )
+
         result = await self.db.execute(query)
         item = result.scalar_one_or_none()
         if not item:
             return None
         return self.schema.model_validate(item)
 
-    async def create(self, schema: Union[BaseModel, Dict[str, Any]]) -> SchemaType:
-        """
-        Creates a new record in the database.
-        """
+    async def create(self, schema: BaseModel | dict[str, Any]) -> SchemaType:
+        """Creates a new record in the database."""
         # Convert Pydantic schema to SQLAlchemy model
         if isinstance(schema, BaseModel):
             data = schema.model_dump(exclude_unset=True)
@@ -101,10 +110,12 @@ class BaseRepositoryMixin(Generic[ModelType, SchemaType, IDType]):
         await self.db.refresh(db_item)
         return self.schema.model_validate(db_item)
 
-    async def update(self, item_id: IDType, update_data: Union[BaseModel, Dict[str, Any]]) -> Optional[SchemaType]:
-        """
-        Performs a partial update on a document.
-        """
+    async def update(
+        self,
+        item_id: IDType,
+        update_data: BaseModel | dict[str, Any],
+    ) -> SchemaType | None:
+        """Performs a partial update on a document."""
         # Fetch the item first
         query = select(self.model).where(self.model.id == item_id)
         result = await self.db.execute(query)
@@ -125,27 +136,29 @@ class BaseRepositoryMixin(Generic[ModelType, SchemaType, IDType]):
 
         # Update timestamp
         if hasattr(db_item, "updated_at"):
-            db_item.updated_at = datetime.datetime.now(datetime.timezone.utc)
+            db_item.updated_at = datetime.datetime.now(datetime.UTC)
 
         await self.db.commit()
         await self.db.refresh(db_item)
         return self.schema.model_validate(db_item)
 
     async def delete(self, item_id: IDType) -> bool:
-        """
-        Deletes a document by its ID (HARD DELETE).
+        """Deletes a document by its ID (HARD DELETE).
         Returns True if deletion was successful (item existed), False otherwise.
         """
         # Check existence first or just delete and check rowcount
         result = await self.db.execute(
-            delete(self.model).where(self.model.id == item_id)
+            delete(self.model).where(self.model.id == item_id),
         )
         await self.db.commit()
-        return result.rowcount > 0 # type: ignore
+        return result.rowcount > 0  # type: ignore
 
-    async def soft_delete(self, item_id: IDType, deleted_by: Optional[int] = None) -> bool:
-        """
-        Soft deletes a document by setting its `deleted_at` timestamp.
+    async def soft_delete(
+        self,
+        item_id: IDType,
+        deleted_by: int | None = None,
+    ) -> bool:
+        """Soft deletes a document by setting its `deleted_at` timestamp.
         Returns True if successful, False if item not found.
         """
         query = select(self.model).where(self.model.id == item_id)
@@ -155,8 +168,8 @@ class BaseRepositoryMixin(Generic[ModelType, SchemaType, IDType]):
             return False
 
         if hasattr(db_item, "deleted_at"):
-            db_item.deleted_at = datetime.datetime.now(datetime.timezone.utc)
-        
+            db_item.deleted_at = datetime.datetime.now(datetime.UTC)
+
         if hasattr(db_item, "deleted_by") and deleted_by is not None:
             db_item.deleted_by = deleted_by
 
@@ -164,11 +177,14 @@ class BaseRepositoryMixin(Generic[ModelType, SchemaType, IDType]):
         return True
 
     async def restore(self, item_id: IDType) -> bool:
-        """
-        Soft restores a document by setting its `deleted_at` timestamp back to None.
+        """Soft restores a document by setting its `deleted_at` timestamp back to None.
         Returns True if successful, False if item not found.
         """
-        query = select(self.model).where(self.model.id == item_id).execution_options(include_deleted=True)
+        query = (
+            select(self.model)
+            .where(self.model.id == item_id)
+            .execution_options(include_deleted=True)
+        )
         result = await self.db.execute(query)
         db_item = result.scalar_one_or_none()
         if not db_item:
@@ -176,21 +192,22 @@ class BaseRepositoryMixin(Generic[ModelType, SchemaType, IDType]):
 
         if hasattr(db_item, "deleted_at"):
             db_item.deleted_at = None
-            
+
         if hasattr(db_item, "deleted_by"):
             db_item.deleted_by = None
 
         await self.db.commit()
         return True
 
-    async def find_all(self, limit: int = 100, offset: int = 0, include_deleted: bool = False) -> List[SchemaType]:
-        """
-        Finds all documents with pagination, excluding soft-deleted ones.
-        """
+    async def find_all(
+        self,
+        limit: int = 100,
+        offset: int = 0,
+        include_deleted: bool = False,
+    ) -> list[SchemaType]:
+        """Finds all documents with pagination, excluding soft-deleted ones."""
         query = select(self.model).execution_options(include_deleted=include_deleted)
-        result = await self.db.execute(
-            query.limit(limit).offset(offset)
-        )
+        result = await self.db.execute(query.limit(limit).offset(offset))
         items = result.scalars().all()
         return [self.schema.model_validate(item) for item in items]
 

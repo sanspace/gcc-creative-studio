@@ -1,16 +1,38 @@
+# Copyright 2026 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+from unittest.mock import AsyncMock
+
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from unittest.mock import AsyncMock, MagicMock
 
-from src.media_templates.media_templates_controller import router
 from src.auth.auth_guard import get_current_user
+from src.media_templates.media_templates_controller import router
 from src.media_templates.media_templates_service import MediaTemplateService
 from src.users.user_model import UserModel, UserRoleEnum
 
+
 @pytest.fixture
 def mock_admin():
-    return UserModel(id=1, email="admin@example.com", name="Admin", roles=[UserRoleEnum.ADMIN])
+    return UserModel(
+        id=1,
+        email="admin@example.com",
+        name="Admin",
+        roles=[UserRoleEnum.ADMIN],
+    )
+
 
 @pytest.fixture
 def mock_service():
@@ -22,15 +44,17 @@ def mock_service():
     service.delete_template = AsyncMock()
     return service
 
+
 @pytest.fixture
 def client(mock_admin, mock_service):
     app = FastAPI()
     app.include_router(router)
-    
+
     app.dependency_overrides[get_current_user] = lambda: mock_admin
     app.dependency_overrides[MediaTemplateService] = lambda: mock_service
 
     return TestClient(app)
+
 
 def get_dummy_template_dict():
     return {
@@ -43,9 +67,10 @@ def get_dummy_template_dict():
         "generation_parameters": {
             "prompt": "Enhanced prompt",
             "model": "imagen",
-            "aspect_ratio": "1:1"
-        }
+            "aspect_ratio": "1:1",
+        },
     }
+
 
 def test_create_template_success(client, mock_service):
     mock_template = get_dummy_template_dict()
@@ -57,19 +82,28 @@ def test_create_template_success(client, mock_service):
     assert response.json()["id"] == 1
     mock_service.create_template_from_media_item.assert_called_once()
 
+
 def test_find_templates_success(client, mock_service):
     from src.common.dto.pagination_response_dto import PaginationResponseDto
+
     # In controller response_model=PaginationResponseDto[MediaTemplateResponse]
     # We can just return items inside list
     mock_item = get_dummy_template_dict()
-    
-    mock_response = PaginationResponseDto(count=1, data=[mock_item], page=1, page_size=10, total_pages=1)
+
+    mock_response = PaginationResponseDto(
+        count=1,
+        data=[mock_item],
+        page=1,
+        page_size=10,
+        total_pages=1,
+    )
     mock_service.find_all_templates.return_value = mock_response
 
     response = client.get("/api/media-templates")
 
     assert response.status_code == 200
     assert len(response.json()["data"]) == 1
+
 
 def test_get_template_success(client, mock_service):
     mock_template = get_dummy_template_dict()
@@ -81,12 +115,14 @@ def test_get_template_success(client, mock_service):
     assert response.status_code == 200
     assert response.json()["id"] == 2
 
+
 def test_get_template_not_found(client, mock_service):
     mock_service.get_template_by_id.return_value = None
 
     response = client.get("/api/media-templates/999")
 
     assert response.status_code == 404
+
 
 def test_update_template_success(client, mock_service):
     mock_template = get_dummy_template_dict()
@@ -100,6 +136,7 @@ def test_update_template_success(client, mock_service):
     assert response.status_code == 200
     assert response.json()["name"] == "Updated"
 
+
 def test_delete_template_success(client, mock_service):
     mock_service.delete_template.return_value = True
 
@@ -107,10 +144,12 @@ def test_delete_template_success(client, mock_service):
 
     assert response.status_code == 204
 
+
 def test_create_template_not_found(client, mock_service):
     mock_service.create_template_from_media_item.return_value = None
     response = client.post("/api/media-templates/from-media-item/999")
     assert response.status_code == 404
+
 
 def test_update_template_not_found(client, mock_service):
     mock_service.update_template.return_value = None
@@ -118,8 +157,8 @@ def test_update_template_not_found(client, mock_service):
     response = client.put("/api/media-templates/999", json=payload)
     assert response.status_code == 404
 
+
 def test_delete_template_not_found(client, mock_service):
     mock_service.delete_template.return_value = False
     response = client.delete("/api/media-templates/999")
     assert response.status_code == 404
-

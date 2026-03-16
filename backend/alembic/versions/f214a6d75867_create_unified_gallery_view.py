@@ -1,3 +1,17 @@
+# Copyright 2026 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """create unified gallery view
 
 Revision ID: f214a6d75867
@@ -5,21 +19,21 @@ Revises: 0bd50a4bf20c
 Create Date: 2025-02-23 17:01:04.000000
 
 """
-from typing import Sequence, Union
+
+from collections.abc import Sequence
 
 from alembic import op
-import sqlalchemy as sa
-
 
 # revision identifiers, used by Alembic.
-revision: str = 'f214a6d75867'
-down_revision: Union[str, None] = '0bd50a4bf20c'
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+revision: str = "f214a6d75867"
+down_revision: str | None = "0bd50a4bf20c"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    op.execute("""
+    op.execute(
+        """
     CREATE OR REPLACE VIEW unified_gallery_view AS
     SELECT
         id,
@@ -63,7 +77,8 @@ def upgrade() -> None:
             'is_audio', (mime_type like 'audio%')
         ) as metadata
     FROM source_assets;
-    """)
+    """,
+    )
 
 
 def downgrade() -> None:

@@ -152,9 +152,7 @@ TEMPLATES = [
         "brand": "Cymbal",
         "tags": ["chocolate", "fantasy", "surreal", "food"],
         "local_uris": ["cymbal-chocolate-fantasy-local.mp4"],
-        "local_thumbnail_uris": [
-            "cymbal-chocolate-fantasy-local-thumbnail.png"
-        ],
+        "local_thumbnail_uris": ["cymbal-chocolate-fantasy-local-thumbnail.png"],
         "input_gcs_uris": [
             {
                 "local_uri": "cymbal_chocolate.png",

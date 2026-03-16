@@ -119,6 +119,27 @@ To maintain code quality and consistency:
 * **Python (Backend):** We adhere to the [Google Python Style Guide](https://google.github.io/styleguide/pyguide.html), using tools like `pylint` and `black` for linting and formatting.
 * **Commit Messages:** We suggest following [Angular's Commit Message Guidelines](https://github.com/angular/angular/blob/main/contributing-docs/commit-message-guidelines.md) to create clear and descriptive commit messages.
 
+
+### 🛡️ Automatic Checks with Pre-commit (Recommended)
+
+To ensure your code passes styling, linting, and license header checks automatically before every `git commit`, we use a **fully containerized `pre-commit` pipeline**. This eliminates the need for any local installations of Node, Go, or linters on your host machine.
+
+1.  **Configure the Git Hook Handler**:
+    Run the following command once from the project root directory to link the script for intercepting commits:
+    ```bash
+    cp pre-commit-hook.sh .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
+    ```
+
+2.  **How it Works**:
+    Whenever you run `git commit`, the hook will automatically run inside an isolated Docker container in the background loaded with all linter binaries (`addlicense`, `gts`, `pylint`, `black`, `ruff`). It blocks the commit if any checks fail, enforcing consistency.
+
+3.  **Manual Verification**:
+    To run all checks manually without committing:
+    ```bash
+    docker compose run --rm pre-commit run --all-files
+    ```
+
+
 ### Frontend (TypeScript with `gts`)
 
 (Assumes setup within the `frontend/` directory)

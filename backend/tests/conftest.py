@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
 import os
+import sys
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -26,10 +26,12 @@ sys.path.insert(0, os.path.abspath(os.path.dirname(__file__) + "/../"))
 os.environ["ENVIRONMENT"] = "local"
 
 import google.auth
+
 google.auth.default = MagicMock(return_value=(MagicMock(), "dummy-project-id"))
 
 # Mock ProjectsClient to prevent live API calls during startup validation check
 from google.cloud import resourcemanager_v3
+
 resourcemanager_v3.ProjectsClient = MagicMock()
 
 
@@ -40,13 +42,14 @@ def mock_migrations():
     with patch("src.database_migrations.run_pending_migrations", AsyncMock()) as mock:
         yield mock
 
+
 from main import app
 from src.auth.auth_guard import get_current_user
 from src.database import get_db
 from src.users.user_model import UserModel, UserRoleEnum
 
-
 # --- User Model Fixtures ---
+
 
 @pytest.fixture
 def mock_user():
@@ -56,8 +59,9 @@ def mock_user():
         email="user@example.com",
         roles=[UserRoleEnum.USER],
         name="Regular User",
-        picture="http://example.com/user.jpg"
+        picture="http://example.com/user.jpg",
     )
+
 
 @pytest.fixture
 def mock_admin():
@@ -67,8 +71,9 @@ def mock_admin():
         email="admin@example.com",
         roles=[UserRoleEnum.ADMIN],
         name="Admin User",
-        picture="http://example.com/admin.jpg"
+        picture="http://example.com/admin.jpg",
     )
+
 
 @pytest.fixture
 def mock_creator():
@@ -78,11 +83,12 @@ def mock_creator():
         email="creator@example.com",
         roles=[UserRoleEnum.CREATOR],
         name="Creator User",
-        picture="http://example.com/creator.jpg"
+        picture="http://example.com/creator.jpg",
     )
 
 
 # --- Database Fixtures ---
+
 
 @pytest.fixture
 def db_session_mock():
@@ -92,8 +98,10 @@ def db_session_mock():
 
 # --- API Client Fixtures ---
 
+
 def _create_api_client(user_model, db_mock):
     """Helper to create a TestClient with overridden dependencies."""
+
     def override_get_current_user():
         return user_model
 
@@ -102,11 +110,11 @@ def _create_api_client(user_model, db_mock):
 
     app.dependency_overrides[get_current_user] = override_get_current_user
     app.dependency_overrides[get_db] = override_get_db
-    
+
     # We use a context manager to trigger lifespan events
     with TestClient(app) as client:
         yield client
-        
+
     app.dependency_overrides.clear()
 
 
@@ -115,10 +123,12 @@ def api_client(mock_user, db_session_mock):
     """Provides a TestClient authenticated as a regular USER."""
     yield from _create_api_client(mock_user, db_session_mock)
 
+
 @pytest.fixture
 def admin_client(mock_admin, db_session_mock):
     """Provides a TestClient authenticated as an ADMIN."""
     yield from _create_api_client(mock_admin, db_session_mock)
+
 
 @pytest.fixture
 def creator_client(mock_creator, db_session_mock):

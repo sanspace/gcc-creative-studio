@@ -12,15 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional
-from src.users.user_model import UserRoleEnum
+
 from src.common.dto.base_search_dto import BaseSearchDto
+from src.users.user_model import UserRoleEnum
 
 
 class UserSearchDto(BaseSearchDto):
-    """
-    DTO for searching users.
-    """
-    role: Optional[UserRoleEnum] = None
-    email: Optional[str] = None
+    """DTO for searching users."""
+
+    role: UserRoleEnum | None = None
+    email: str | None = None
     include_deleted: bool = False

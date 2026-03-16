@@ -12,16 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status, Header
+from fastapi import APIRouter, Depends, Header, HTTPException, Response, status
 
-from src.auth.auth_guard import RoleChecker, get_current_user
+from src.auth.auth_guard import get_current_user
 from src.common.dto.pagination_response_dto import PaginationResponseDto
-from src.users.user_model import UserModel, UserRoleEnum
-from src.workflows.dto.workflow_search_dto import WorkflowSearchDto
-from src.workflows.schema.workflow_model import WorkflowCreateDto, WorkflowModel, WorkflowExecuteDto
+from src.users.user_model import UserModel
 from src.workflows.dto.batch_execution_dto import (
     BatchExecutionRequestDto,
     BatchExecutionResponseDto,
+)
+from src.workflows.dto.workflow_search_dto import WorkflowSearchDto
+from src.workflows.schema.workflow_model import (
+    WorkflowCreateDto,
+    WorkflowExecuteDto,
+    WorkflowModel,
 )
 from src.workflows.workflow_service import WorkflowService
 
@@ -56,7 +60,8 @@ async def create_workflow(
 ):
     """Creates a new workflow definition."""
     created_workflow = await workflow_service.create_workflow(
-        workflow_data, current_user
+        workflow_data,
+        current_user,
     )
 
     return created_workflow
@@ -84,7 +89,7 @@ async def update_workflow(
     # 2. Verify that the workflow belongs to the user or handle auth as needed.
     # (Since it's shared across workspaces, we use user-level auth)
     if existing_workflow.user_id != current_user.id:
-         raise HTTPException(
+        raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not have permission to update this workflow.",
         )
@@ -92,7 +97,9 @@ async def update_workflow(
     # 4. Pass the DTO to the service to handle the update logic.
     # Service update_workflow returns the coroutine from repo.update_workflow, so we await it.
     return await workflow_service.update_workflow(
-        workflow_id, workflow_data, current_user
+        workflow_id,
+        workflow_data,
+        current_user,
     )
 
 
@@ -109,7 +116,8 @@ async def get_workflow(
         return Response(status_code=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         return Response(
-            content=str(e), status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+            content=str(e),
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
 
@@ -123,12 +131,12 @@ async def delete_workflow(
     current_user: UserModel = Depends(get_current_user),
     workflow_service: WorkflowService = Depends(),
 ):
-    """
-    Permanently deletes a workflow from the database.
+    """Permanently deletes a workflow from the database.
     This functionality is restricted to owners of the workflow.
     """
     workflow = await workflow_service.get_workflow(
-        current_user.id, workflow_id  # type: ignore
+        current_user.id,
+        workflow_id,  # type: ignore
     )
 
     if not workflow:
@@ -136,7 +144,7 @@ async def delete_workflow(
 
     if not await workflow_service.delete_by_id(workflow_id):
         raise HTTPException(status_code=404, detail="Workflow not found")
-    return
+
 
 @router.post("/{workflow_id}/workflow-execute")
 async def execute_workflow(
@@ -146,15 +154,13 @@ async def execute_workflow(
     current_user: UserModel = Depends(get_current_user),
     workflow_service: WorkflowService = Depends(),
 ):
-    """
-    This function is the controller that calls the service to generate the workflow.
-    """
+    """This function is the controller that calls the service to generate the workflow."""
     workflow_execute_dto.args["user_auth_header"] = authorization
 
     response = await workflow_service.execute_workflow(
         workflow_id=workflow_id,
         args=workflow_execute_dto.args,
-        user=current_user
+        user=current_user,
     )
     print(f"Created execution: {response}")
     return {"execution_id": response}
@@ -168,9 +174,7 @@ async def batch_execute_workflow(
     current_user: UserModel = Depends(get_current_user),
     workflow_service: WorkflowService = Depends(),
 ):
-    """
-    Executes a batch of workflow runs based on the provided items.
-    """
+    """Executes a batch of workflow runs based on the provided items."""
     # Inject user_auth_header into each item's args
     if authorization:
         for item in batch_dto.items:
@@ -196,11 +200,11 @@ async def get_execution(
     workflow = await workflow_service.get_workflow(current_user.id, workflow_id)
     if not workflow:
         raise HTTPException(status_code=404, detail="Workflow not found")
-        
+
     execution = await workflow_service.get_execution_details(workflow_id, execution_id)
     if not execution:
         raise HTTPException(status_code=404, detail="Execution not found")
-    
+
     return execution
 
 
@@ -224,5 +228,8 @@ async def list_executions(
         filter_str = f'state="{status}"'
 
     return workflow_service.list_executions(
-        workflow_id=workflow_id, limit=limit, page_token=page_token, filter_str=filter_str
+        workflow_id=workflow_id,
+        limit=limit,
+        page_token=page_token,
+        filter_str=filter_str,
     )

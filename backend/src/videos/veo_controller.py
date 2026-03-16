@@ -21,13 +21,10 @@ from src.users.user_model import UserModel, UserRoleEnum
 from src.videos.dto.concatenate_videos_dto import ConcatenateVideosDto
 from src.videos.dto.create_veo_dto import CreateVeoDto
 from src.videos.veo_service import VeoService
-from src.workspaces.repository.workspace_repository import WorkspaceRepository
 from src.workspaces.workspace_auth_guard import WorkspaceAuth
 
 # Define role checkers for convenience
-user_only = Depends(
-    RoleChecker(allowed_roles=[UserRoleEnum.USER, UserRoleEnum.ADMIN])
-)
+user_only = Depends(RoleChecker(allowed_roles=[UserRoleEnum.USER, UserRoleEnum.ADMIN]))
 
 router = APIRouter(
     prefix="/api/videos",
@@ -87,8 +84,7 @@ async def concatenate_videos(
     service: VeoService = Depends(),
     workspace_auth: WorkspaceAuth = Depends(),
 ):
-    """
-    Creates a new video by concatenating two or more existing videos in a specified order.
+    """Creates a new video by concatenating two or more existing videos in a specified order.
     This is an asynchronous operation that returns a placeholder immediately.
     """
     try:
@@ -98,14 +94,15 @@ async def concatenate_videos(
         )
         executor = request.app.state.executor
         placeholder_item = await service.start_video_concatenation_job(
-            request_dto=concat_request, user=current_user, executor=executor
+            request_dto=concat_request,
+            user=current_user,
+            executor=executor,
         )
         return placeholder_item
     except HTTPException as http_exception:
         raise http_exception
     except Exception as e:
         raise HTTPException(
-            status_code=Status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+            status_code=Status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e),
         )
-
-

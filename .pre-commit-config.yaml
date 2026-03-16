@@ -18,3 +18,28 @@ repos:
   hooks:
   - id: addlicense
     args: [ "-c", "Google LLC", "-l", "apache" ]
+
+- repo: local
+  hooks:
+  - id: gts
+    name: gts
+    entry: bash -c "cd frontend && npx gts lint"
+    language: system
+    files: ^frontend/
+    pass_filenames: false
+    stages: [manual]
+
+  - id: pylint
+    name: pylint
+    entry: pylint
+    args: [ "--rcfile=backend/pylintrc" ]
+    language: system
+    files: ^backend/
+    stages: [manual]
+
+
+- repo: https://github.com/psf/black
+  rev: 24.10.0
+  hooks:
+  - id: black
+    files: ^backend/

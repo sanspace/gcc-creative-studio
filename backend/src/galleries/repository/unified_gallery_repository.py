@@ -12,90 +12,95 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, List
 
 from fastapi import Depends
-from sqlalchemy import func, select, cast, String
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.dialects.postgresql import JSONB
 
 from src.common.base_repository import BaseRepository
+from src.common.dto.pagination_response_dto import PaginationResponseDto
 from src.common.schema.unified_gallery_view import UnifiedGalleryView
 from src.database import get_db
 from src.galleries.dto.gallery_search_dto import GallerySearchDto
 from src.galleries.dto.unified_gallery_response import UnifiedGalleryItemResponse
-from src.common.dto.pagination_response_dto import PaginationResponseDto
 
 
-class UnifiedGalleryRepository(BaseRepository[UnifiedGalleryView, UnifiedGalleryItemResponse]):
-    """
-    Repository for accessing the unified_gallery_view.
-    """
+class UnifiedGalleryRepository(
+    BaseRepository[UnifiedGalleryView, UnifiedGalleryItemResponse],
+):
+    """Repository for accessing the unified_gallery_view."""
 
     def __init__(self, db: AsyncSession = Depends(get_db)):
-        super().__init__(model=UnifiedGalleryView, schema=UnifiedGalleryItemResponse, db=db)
-    
+        super().__init__(
+            model=UnifiedGalleryView,
+            schema=UnifiedGalleryItemResponse,
+            db=db,
+        )
+
     async def query(
-        self, search_dto: GallerySearchDto, user_id: Optional[int] = None
+        self,
+        search_dto: GallerySearchDto,
+        user_id: int | None = None,
     ) -> PaginationResponseDto[UnifiedGalleryItemResponse]:
-        """
-        Performs a paginated query on the unified view.
+        """Performs a paginated query on the unified view.
         user_id is successfully resolved from search_dto.user_email in the Service layer if present.
         """
         # 1. Build the base query
         query = select(self.model)
-        
+
         # Soft Delete Filter
         if not search_dto.include_deleted:
             query = query.where(self.model.deleted_at.is_(None))
-            
+
         # Filter by workspace (conditional for admins)
         if search_dto.workspace_id is not None:
             query = query.where(self.model.workspace_id == search_dto.workspace_id)
 
-        
         # Filter by status
         if search_dto.status:
             # We cast to string because JobStatusEnum is an enum but DB view column is string
             query = query.where(self.model.status == search_dto.status.value)
-            
+
         # Filter by user_id
         if search_dto.user_email and user_id is not None:
             query = query.where(self.model.user_id == user_id)
-            
+
         # Filter by metadata using JSONB operators
         # 1. Mime Type
         if search_dto.mime_type:
             # Use .astext (->>) to get the unquoted string value from JSONB
-            mime_val = search_dto.mime_type.value if hasattr(search_dto.mime_type, 'value') else search_dto.mime_type
-            if '*' in mime_val:
-                 # PostgreSQL: metadata->>'mime_type' LIKE 'image/%'
-                 prefix = mime_val.replace('*', '%')
-                 query = query.where(
-                     self.model.metadata_['mime_type'].astext.like(prefix)
-                 )
+            mime_val = (
+                search_dto.mime_type.value
+                if hasattr(search_dto.mime_type, "value")
+                else search_dto.mime_type
+            )
+            if "*" in mime_val:
+                # PostgreSQL: metadata->>'mime_type' LIKE 'image/%'
+                prefix = mime_val.replace("*", "%")
+                query = query.where(
+                    self.model.metadata_["mime_type"].astext.like(prefix),
+                )
             else:
                 query = query.where(
-                    self.model.metadata_['mime_type'].astext == mime_val
+                    self.model.metadata_["mime_type"].astext == mime_val,
                 )
 
         # 2. Model
         if search_dto.model:
-             query = query.where(
-                 self.model.metadata_['model'].astext == search_dto.model.value
-             )
-
+            query = query.where(
+                self.model.metadata_["model"].astext == search_dto.model.value,
+            )
 
         # 3. Item Type
-        if hasattr(search_dto, 'item_type') and search_dto.item_type:
-             query = query.where(self.model.item_type == search_dto.item_type)
+        if hasattr(search_dto, "item_type") and search_dto.item_type:
+            query = query.where(self.model.item_type == search_dto.item_type)
 
         # 4. Date Range
-        if hasattr(search_dto, 'start_date') and search_dto.start_date:
-             query = query.where(self.model.created_at >= search_dto.start_date)
-             
-        if hasattr(search_dto, 'end_date') and search_dto.end_date:
-             query = query.where(self.model.created_at <= search_dto.end_date)
+        if hasattr(search_dto, "start_date") and search_dto.start_date:
+            query = query.where(self.model.created_at >= search_dto.start_date)
+
+        if hasattr(search_dto, "end_date") and search_dto.end_date:
+            query = query.where(self.model.created_at <= search_dto.end_date)
 
         # 2. Get total count
         count_query = select(func.count()).select_from(query.subquery())
@@ -112,7 +117,7 @@ class UnifiedGalleryRepository(BaseRepository[UnifiedGalleryView, UnifiedGallery
         # 4. Execute
         result = await self.db.execute(query)
         items = result.scalars().all()
-        
+
         data = [self.schema.model_validate(item) for item in items]
 
         # 5. Determine next cursor (offset)

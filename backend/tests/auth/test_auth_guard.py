@@ -13,12 +13,13 @@
 # limitations under the License.
 
 from unittest.mock import AsyncMock, patch
+
 import pytest
 from fastapi import HTTPException
 
-from src.auth.auth_guard import get_current_user, RoleChecker
-from src.users.user_model import UserModel, UserRoleEnum
+from src.auth.auth_guard import RoleChecker, get_current_user
 from src.config.config_service import config_service
+from src.users.user_model import UserModel, UserRoleEnum
 
 
 @pytest.fixture
@@ -26,7 +27,10 @@ def mock_user_service():
     service = AsyncMock()
     # Mock create_user_if_not_exists to return a user
     service.create_user_if_not_exists.return_value = UserModel(
-        id=1, email="test@example.com", roles=["user"], name="Test User"
+        id=1,
+        email="test@example.com",
+        roles=["user"],
+        name="Test User",
     )
     return service
 
@@ -40,30 +44,33 @@ class TestGetCurrentUser:
         # Setup: Local environment
         config_service.ENVIRONMENT = "local"
         config_service.ALLOWED_ORGS_STR = ""
-        
+
         # Mock token verification
         mock_verify.return_value = {
             "email": "test@example.com",
             "name": "Test User",
             "picture": "http://example.com/pic.jpg",
-            "hd": "example.com"
+            "hd": "example.com",
         }
 
-        user = await get_current_user(token="valid_token", user_service=mock_user_service)
+        user = await get_current_user(
+            token="valid_token",
+            user_service=mock_user_service,
+        )
 
         assert user.email == "test@example.com"
         assert user.name == "Test User"
         mock_user_service.create_user_if_not_exists.assert_called_once_with(
-            email="test@example.com", name="Test User", picture="http://example.com/pic.jpg"
+            email="test@example.com",
+            name="Test User",
+            picture="http://example.com/pic.jpg",
         )
 
     @pytest.mark.anyio
     @patch("src.auth.auth_guard.auth.verify_id_token")
     async def test_get_current_user_no_email(self, mock_verify, mock_user_service):
         config_service.ENVIRONMENT = "local"
-        mock_verify.return_value = {
-            "name": "Test User"  # Missing email
-        }
+        mock_verify.return_value = {"name": "Test User"}  # Missing email
 
         with pytest.raises(HTTPException) as exc_info:
             await get_current_user(token="valid_token", user_service=mock_user_service)
@@ -73,14 +80,18 @@ class TestGetCurrentUser:
 
     @pytest.mark.anyio
     @patch("src.auth.auth_guard.auth.verify_id_token")
-    async def test_get_current_user_allowed_orgs_fail(self, mock_verify, mock_user_service):
+    async def test_get_current_user_allowed_orgs_fail(
+        self,
+        mock_verify,
+        mock_user_service,
+    ):
         config_service.ENVIRONMENT = "local"
         config_service.ALLOWED_ORGS_STR = "allowed.com"
-        
+
         mock_verify.return_value = {
             "email": "test@example.com",
             "name": "Test User",
-            "hd": "forbidden.com"
+            "hd": "forbidden.com",
         }
 
         with pytest.raises(HTTPException) as exc_info:
@@ -95,14 +106,24 @@ class TestRoleChecker:
 
     def test_role_checker_authorized(self):
         checker = RoleChecker(allowed_roles=[UserRoleEnum.ADMIN])
-        user = UserModel(id=1, email="admin@example.com", roles=["admin"], name="Admin User")
+        user = UserModel(
+            id=1,
+            email="admin@example.com",
+            roles=["admin"],
+            name="Admin User",
+        )
 
         # Should not raise exception
         checker(user=user)
 
     def test_role_checker_forbidden(self):
         checker = RoleChecker(allowed_roles=[UserRoleEnum.ADMIN])
-        user = UserModel(id=1, email="user@example.com", roles=["user"], name="Regular User")
+        user = UserModel(
+            id=1,
+            email="user@example.com",
+            roles=["user"],
+            name="Regular User",
+        )
 
         with pytest.raises(HTTPException) as exc_info:
             checker(user=user)

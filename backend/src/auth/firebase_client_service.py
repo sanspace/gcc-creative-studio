@@ -17,25 +17,18 @@ import os
 
 import firebase_admin
 import google.auth
-from fastapi import HTTPException, status
-from firebase_admin import auth, credentials, firestore
+from firebase_admin import credentials
 from google.auth.exceptions import RefreshError
 from google.cloud import resourcemanager_v3
-
-from src.config.config_service import config_service
 
 logger = logging.getLogger(__name__)
 
 
 class FirebaseClient:
-    """
-    A class to initialize the Firebase Admin SDK and provide access to Firestore and Auth.
-    """
+    """A class to initialize the Firebase Admin SDK and provide access to Firestore and Auth."""
 
     def __init__(self):
-        """
-        Initializes the Firebase Admin SDK with credentials and creates a Firestore client.
-        """
+        """Initializes the Firebase Admin SDK with credentials and creates a Firestore client."""
         try:
             # Init Firebase Creds
             if not firebase_admin._apps:  # Check if already initialized
@@ -43,12 +36,12 @@ class FirebaseClient:
 
                 if cred_path:
                     logger.info(
-                        f"Initializing Firebase Admin SDK with credentials from: {cred_path}"
+                        f"Initializing Firebase Admin SDK with credentials from: {cred_path}",
                     )
                     if not os.path.exists(cred_path):
                         # If path is provided but file doesn't exist, it's a configuration error.
                         raise FileNotFoundError(
-                            f"Firebase credentials file specified but not found at {cred_path}"
+                            f"Firebase credentials file specified but not found at {cred_path}",
                         )
                     cred = credentials.Certificate(cred_path)
                     firebase_admin.initialize_app(cred)
@@ -61,9 +54,7 @@ class FirebaseClient:
                     # If ADC are not found or lack permissions, this will raise an error.
                     # e.g., google.auth.exceptions.DefaultCredentialsError
 
-                logger.info(
-                    f"Firebase App Name: {firebase_admin.get_app().name}"
-                )
+                logger.info(f"Firebase App Name: {firebase_admin.get_app().name}")
 
                 # Check if reauthentication is needed
                 self.check_adc_authentication()
@@ -76,12 +67,12 @@ class FirebaseClient:
             raise RuntimeError(f"Failed to initialize Firebase Admin SDK: {e}")
 
     def check_adc_authentication(self):
-        """
-        Checks if Application Default Credentials (ADC) are valid by making a
+        """Checks if Application Default Credentials (ADC) are valid by making a
         lightweight API call.
 
         Returns:
             bool: True if authentication is successful, False otherwise.
+
         """
         try:
             # 1. Attempt to find and load ADC
@@ -92,20 +83,20 @@ class FirebaseClient:
             if not project_id:
                 logger.warning(
                     "Could not determine project ID from ADC. "
-                    "Unable to perform a live authentication check."
+                    "Unable to perform a live authentication check.",
                 )
                 # You might still consider this a success if credentials exist
                 return credentials is not None
 
             logger.info(
-                f"ADC found for project: {project_id}. Attempting a test API call..."
+                f"ADC found for project: {project_id}. Attempting a test API call...",
             )
 
             # 2. Make a lightweight, authenticated API call to test the credentials
             client = resourcemanager_v3.ProjectsClient(credentials=credentials)  # type: ignore
             project_name = f"projects/{project_id}"
             client.get_project(
-                name=project_name
+                name=project_name,
             )  # This call requires 'resourcemanager.projects.get' permission
 
             logger.info("✅ ADC Authentication successful.")
@@ -115,7 +106,7 @@ class FirebaseClient:
             # This is the specific error for expired user credentials
             logger.critical(
                 "❌ ADC REAUTHENTICATION NEEDED. "
-                f"Please run `gcloud auth application-default login`. Details: {e}"
+                f"Please run `gcloud auth application-default login`. Details: {e}",
             )
             raise e
         except Exception as e:

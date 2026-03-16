@@ -13,10 +13,7 @@
 # limitations under the License.
 
 import asyncio
-import hashlib
 import io
-import os
-from typing import List, Optional
 
 from fastapi import Depends, HTTPException, UploadFile, status
 from starlette.datastructures import Headers
@@ -26,7 +23,6 @@ from src.common.base_dto import MimeTypeEnum
 from src.common.dto.pagination_response_dto import PaginationResponseDto
 from src.common.schema.media_item_model import (
     SourceAssetLink,
-    SourceMediaItemLink,
 )
 from src.common.storage_service import GcsService
 from src.galleries.dto.gallery_response_dto import SourceAssetLinkResponse
@@ -90,11 +86,10 @@ class MediaTemplateService:
         self.workspace_repo = workspace_repo
 
     async def _enrich_source_asset_link(
-        self, link: SourceAssetLink
-    ) -> Optional[SourceAssetLinkResponse]:
-        """
-        Fetches the source asset document and generates a presigned URL for it.
-        """
+        self,
+        link: SourceAssetLink,
+    ) -> SourceAssetLinkResponse | None:
+        """Fetches the source asset document and generates a presigned URL for it."""
         asset_doc = await self.source_asset_repo.get_by_id(link.asset_id)
         if not asset_doc:
             return None
@@ -111,27 +106,23 @@ class MediaTemplateService:
         )
 
     async def _create_media_template_response(
-        self, item: MediaTemplateModel
+        self,
+        item: MediaTemplateModel,
     ) -> MediaTemplateResponse:
-        """
-        Helper function to convert a MediaItem into a GalleryItemResponse
+        """Helper function to convert a MediaItem into a GalleryItemResponse
         by generating presigned URLs in parallel for its GCS URIs.
         """
         all_gcs_uris = item.gcs_uris or []
 
         # 1. Create tasks for main media URLs
         main_url_tasks = [
-            asyncio.to_thread(
-                self.iam_signer_credentials.generate_presigned_url, uri
-            )
+            asyncio.to_thread(self.iam_signer_credentials.generate_presigned_url, uri)
             for uri in all_gcs_uris
             if uri
         ]
         # 2. Create tasks for thumbnail URLs
         thumbnail_tasks = [
-            asyncio.to_thread(
-                self.iam_signer_credentials.generate_presigned_url, uri
-            )
+            asyncio.to_thread(self.iam_signer_credentials.generate_presigned_url, uri)
             for uri in (item.thumbnail_uris or "")
             if uri
         ]
@@ -139,8 +130,7 @@ class MediaTemplateService:
         source_asset_tasks = []
         if item.source_assets:
             source_asset_tasks = [
-                self._enrich_source_asset_link(link)
-                for link in item.source_assets
+                self._enrich_source_asset_link(link) for link in item.source_assets
             ]
 
         # 5. Gather all results concurrently
@@ -167,13 +157,15 @@ class MediaTemplateService:
         )
 
     async def get_template_by_id(
-        self, template_id: int
-    ) -> Optional[MediaTemplateModel]:
+        self,
+        template_id: int,
+    ) -> MediaTemplateModel | None:
         """Fetches a single template by its ID."""
         return await self.template_repo.get_by_id(template_id)
 
     async def find_all_templates(
-        self, search_dto: TemplateSearchDto
+        self,
+        search_dto: TemplateSearchDto,
     ) -> PaginationResponseDto[MediaTemplateResponse]:
         """Finds all templates with optional filtering and pagination."""
         # Run the synchronous database query in a separate thread
@@ -182,8 +174,7 @@ class MediaTemplateService:
 
         # Convert each MediaItem to a GalleryItemResponse in parallel
         response_tasks = [
-            self._create_media_template_response(item)
-            for item in media_templates
+            self._create_media_template_response(item) for item in media_templates
         ]
         enriched_items = await asyncio.gather(*response_tasks)
 
@@ -200,15 +191,15 @@ class MediaTemplateService:
         return await self.template_repo.delete(template_id)
 
     async def update_template(
-        self, template_id: int, update_dto: UpdateTemplateDto
-    ) -> Optional[MediaTemplateModel]:
+        self,
+        template_id: int,
+        update_dto: UpdateTemplateDto,
+    ) -> MediaTemplateModel | None:
         """Updates a template's information. (Admin only)"""
         # model_dump with exclude_unset=True creates a dict with only the provided fields
         update_data = update_dto.model_dump(exclude_unset=True)
         if not update_data:
-            return await self.template_repo.get_by_id(
-                template_id
-            )  # Nothing to update
+            return await self.template_repo.get_by_id(template_id)  # Nothing to update
 
         return await self.template_repo.update(template_id, update_data)
 
@@ -216,9 +207,8 @@ class MediaTemplateService:
         self,
         media_item_id: int,
         user: UserModel,
-    ) -> Optional[MediaTemplateModel]:
-        """
-        Creates a new MediaTemplate by copying properties from an existing MediaItem
+    ) -> MediaTemplateModel | None:
+        """Creates a new MediaTemplate by copying properties from an existing MediaItem
         and using Gemini to generate a creative name and description. (Admin only)
         """
         media_item = await self.media_item_repo.get_by_id(media_item_id)
@@ -249,7 +239,7 @@ class MediaTemplateService:
         metadata = CreatePromptTemplateDto.model_validate_json(generated_text)
 
         # --- Convert all source inputs into new, permanent System Assets ---
-        new_source_asset_links: List[SourceAssetLink] = []
+        new_source_asset_links: list[SourceAssetLink] = []
         public_workspace = await self.workspace_repo.get_public_workspace()
         if not public_workspace:
             # This should not happen if bootstrap script has run
@@ -265,43 +255,39 @@ class MediaTemplateService:
                 if source_asset and source_asset.gcs_uri:
                     # Download the asset content
                     blob_name = source_asset.gcs_uri.replace(
-                        f"gs://{self.gcs_service.bucket_name}/", "", 1
+                        f"gs://{self.gcs_service.bucket_name}/",
+                        "",
+                        1,
                     )
                     blob = self.gcs_service.bucket.blob(blob_name)
-                    content_bytes = await asyncio.to_thread(
-                        blob.download_as_bytes
-                    )
+                    content_bytes = await asyncio.to_thread(blob.download_as_bytes)
 
                     # Create a mock UploadFile to use the existing service logic
                     upload_file = UploadFile(
                         filename=source_asset.original_filename,
                         file=io.BytesIO(content_bytes),
-                        headers=Headers(
-                            {"content-type": source_asset.mime_type}
-                        ),
+                        headers=Headers({"content-type": source_asset.mime_type}),
                     )
 
                     # Create a new system-level asset
-                    new_asset_response = (
-                        await self.source_asset_service.upload_asset(
-                            user=user,
-                            file=upload_file,
-                            workspace_id=public_workspace.id,
-                            scope=AssetScopeEnum.SYSTEM,
-                            asset_type=source_asset.asset_type,
-                            aspect_ratio=source_asset.aspect_ratio,
-                        )
+                    new_asset_response = await self.source_asset_service.upload_asset(
+                        user=user,
+                        file=upload_file,
+                        workspace_id=public_workspace.id,
+                        scope=AssetScopeEnum.SYSTEM,
+                        asset_type=source_asset.asset_type,
+                        aspect_ratio=source_asset.aspect_ratio,
                     )
                     new_source_asset_links.append(
-                        SourceAssetLink(
-                            asset_id=new_asset_response.id, role=link.role
-                        )
+                        SourceAssetLink(asset_id=new_asset_response.id, role=link.role),
                     )
 
         # 2. Handle source media items from the 'media_library' collection
         if media_item.source_media_items:
             for link in media_item.source_media_items:
-                source_media_item = await self.media_item_repo.get_by_id(link.media_item_id)
+                source_media_item = await self.media_item_repo.get_by_id(
+                    link.media_item_id,
+                )
                 if (
                     source_media_item
                     and source_media_item.gcs_uris
@@ -309,35 +295,29 @@ class MediaTemplateService:
                 ):
                     gcs_uri = source_media_item.gcs_uris[link.media_index]
                     blob_name = gcs_uri.replace(
-                        f"gs://{self.gcs_service.bucket_name}/", "", 1
+                        f"gs://{self.gcs_service.bucket_name}/",
+                        "",
+                        1,
                     )
                     blob = self.gcs_service.bucket.blob(blob_name)
-                    content_bytes = await asyncio.to_thread(
-                        blob.download_as_bytes
-                    )
+                    content_bytes = await asyncio.to_thread(blob.download_as_bytes)
 
                     upload_file = UploadFile(
                         filename=f"{source_media_item.id}_{link.media_index}.png",
                         file=io.BytesIO(content_bytes),
-                        headers=Headers(
-                            {"content-type": source_media_item.mime_type}
-                        ),
+                        headers=Headers({"content-type": source_media_item.mime_type}),
                     )
 
-                    new_asset_response = (
-                        await self.source_asset_service.upload_asset(
-                            user=user,
-                            file=upload_file,
-                            workspace_id=public_workspace.id,
-                            scope=AssetScopeEnum.SYSTEM,
-                            asset_type=AssetTypeEnum.GENERIC_IMAGE,
-                            aspect_ratio=source_media_item.aspect_ratio,
-                        )
+                    new_asset_response = await self.source_asset_service.upload_asset(
+                        user=user,
+                        file=upload_file,
+                        workspace_id=public_workspace.id,
+                        scope=AssetScopeEnum.SYSTEM,
+                        asset_type=AssetTypeEnum.GENERIC_IMAGE,
+                        aspect_ratio=source_media_item.aspect_ratio,
                     )
                     new_source_asset_links.append(
-                        SourceAssetLink(
-                            asset_id=new_asset_response.id, role=link.role
-                        )
+                        SourceAssetLink(asset_id=new_asset_response.id, role=link.role),
                     )
 
         # Create the new template by mapping fields

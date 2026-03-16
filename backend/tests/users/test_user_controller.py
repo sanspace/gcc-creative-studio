@@ -13,13 +13,14 @@
 # limitations under the License.
 
 from unittest.mock import AsyncMock
+
 import pytest
 from fastapi import status
 
 from main import app
-from src.users.user_service import UserService
-from src.users.user_model import UserModel, UserRoleEnum
 from src.common.dto.pagination_response_dto import PaginationResponseDto
+from src.users.user_model import UserModel
+from src.users.user_service import UserService
 
 
 @pytest.fixture
@@ -43,7 +44,7 @@ class TestGetMyProfile:
 
     def test_get_my_profile_success(self, api_client, mock_user):
         response = api_client.get("/api/users/me")
-        
+
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert data["email"] == mock_user.email
@@ -53,10 +54,19 @@ class TestGetMyProfile:
 class TestListAllUsers:
     """Tests for GET /api/users."""
 
-    def test_list_all_users_admin_success(self, admin_client, mock_user_service, mock_user):
+    def test_list_all_users_admin_success(
+        self,
+        admin_client,
+        mock_user_service,
+        mock_user,
+    ):
         # Setup mock response
         mock_pagination = PaginationResponseDto[UserModel](
-            count=1, page=1, page_size=10, total_pages=1, data=[mock_user]
+            count=1,
+            page=1,
+            page_size=10,
+            total_pages=1,
+            data=[mock_user],
         )
         mock_user_service.find_all_users.return_value = mock_pagination
 
@@ -76,7 +86,12 @@ class TestListAllUsers:
 class TestGetUserById:
     """Tests for GET /api/users/{id}."""
 
-    def test_get_user_by_id_admin_success(self, admin_client, mock_user_service, mock_user):
+    def test_get_user_by_id_admin_success(
+        self,
+        admin_client,
+        mock_user_service,
+        mock_user,
+    ):
         mock_user_service.get_user_by_id.return_value = mock_user
 
         response = admin_client.get("/api/users/1")
@@ -123,12 +138,15 @@ class TestDeleteUser:
 class TestUpdateUserRole:
     """Tests for PUT /api/users/{id}."""
 
-    def test_update_user_role_admin_success(self, admin_client, mock_user_service, mock_user):
+    def test_update_user_role_admin_success(
+        self,
+        admin_client,
+        mock_user_service,
+        mock_user,
+    ):
         mock_user_service.update_user_role.return_value = mock_user
 
-        response = admin_client.put(
-            "/api/users/1", json={"roles": ["admin"]}
-        )
+        response = admin_client.put("/api/users/1", json={"roles": ["admin"]})
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
@@ -137,9 +155,7 @@ class TestUpdateUserRole:
     def test_update_user_role_not_found(self, admin_client, mock_user_service):
         mock_user_service.update_user_role.return_value = None
 
-        response = admin_client.put(
-            "/api/users/999", json={"roles": ["admin"]}
-        )
+        response = admin_client.put("/api/users/999", json={"roles": ["admin"]})
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
@@ -161,4 +177,3 @@ class TestRestoreUser:
         response = admin_client.post("/api/users/999/restore")
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
-

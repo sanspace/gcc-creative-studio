@@ -100,6 +100,15 @@ services:
       - postgres
     restart: unless-stopped
 
+  pre-commit:
+    build:
+      context: .
+      dockerfile: infra/pre-commit/Dockerfile.pre-commit
+    container_name: creative-studio-pre-commit
+    volumes:
+      - .:/app
+    working_dir: /app
+
 volumes:
   backend_venv:
   postgres_data:
