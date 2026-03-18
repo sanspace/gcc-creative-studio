@@ -228,7 +228,7 @@
               [anyItemSelected]="selectedItems.size > 0"
               (mediaItemSelected)="mediaItemSelected.emit($event)"
               (mediaSelected)="mediaSelected.emit($event)"
-              (selectionToggled)="toggleSelection(media)"
+              (selectionToggled)="toggleSelection($event.item, $event.event)"
             ></app-gallery-card>
           </div>
         </div>

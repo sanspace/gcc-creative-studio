@@ -27,6 +27,7 @@ import {
   ViewChild,
   Inject,
   PLATFORM_ID,
+  HostListener,
 } from '@angular/core';
 import {isPlatformBrowser} from '@angular/common';
 import {MatCheckboxChange} from '@angular/material/checkbox';
@@ -75,6 +76,7 @@ export class MediaGalleryComponent implements OnInit, OnDestroy, AfterViewInit {
   groups: {title: string; items: GalleryItem[]}[] = [];
 
   selectedItems: Set<string> = new Set();
+  lastSelectedIndex: number | null = null;
 
   public allImagesLoaded = false;
 
@@ -181,6 +183,7 @@ export class MediaGalleryComponent implements OnInit, OnDestroy, AfterViewInit {
 
     if (this.isBrowser) {
       this.searchTerm();
+      this.showFeaturesHint();
     }
   }
 
@@ -217,28 +220,53 @@ export class MediaGalleryComponent implements OnInit, OnDestroy, AfterViewInit {
     }
   }
 
-  toggleSelection(item: GalleryItem, event?: Event): void {
+  @HostListener('window:keydown.escape', ['$event'])
+  onEscapePressed(event: Event): void {
+    this.deselectAll();
+  }
+
+  toggleSelection(item: GalleryItem, event?: MouseEvent): void {
     if (event) {
       event.preventDefault();
       event.stopPropagation();
     }
-    const id = `${item.itemType}:${item.id}`;
-    if (this.selectedItems.has(id)) {
-      this.selectedItems.delete(id);
-      this.mediaSelected.emit(item);
-    } else {
-      // If maxSelection is 1, clear previous and select new
-      if (this.maxSelection === 1) {
-        this.selectedItems.clear();
-      } else if (
-        this.maxSelection &&
-        this.selectedItems.size >= this.maxSelection
-      ) {
-        return;
+
+    const currentIndex = this.images.findIndex(
+      img => img.id === item.id && img.itemType === item.itemType,
+    );
+
+    if (event?.shiftKey && this.lastSelectedIndex !== null) {
+      const start = Math.min(this.lastSelectedIndex, currentIndex);
+      const end = Math.max(this.lastSelectedIndex, currentIndex);
+
+      for (let i = start; i <= end; i++) {
+        const rangeItem = this.images[i];
+        const id = `${rangeItem.itemType}:${rangeItem.id}`;
+        if (!this.selectedItems.has(id)) {
+          this.selectedItems.add(id);
+          this.mediaSelected.emit(rangeItem);
+        }
       }
-      this.selectedItems.add(id);
-      this.mediaSelected.emit(item);
+    } else {
+      const id = `${item.itemType}:${item.id}`;
+      if (this.selectedItems.has(id)) {
+        this.selectedItems.delete(id);
+        this.mediaSelected.emit(item);
+      } else {
+        // If maxSelection is 1, clear previous and select new
+        if (this.maxSelection === 1) {
+          this.selectedItems.clear();
+        } else if (
+          this.maxSelection &&
+          this.selectedItems.size >= this.maxSelection
+        ) {
+          return;
+        }
+        this.selectedItems.add(id);
+        this.mediaSelected.emit(item);
+      }
     }
+    this.lastSelectedIndex = currentIndex;
   }
 
   selectAll(): void {
@@ -250,6 +278,7 @@ export class MediaGalleryComponent implements OnInit, OnDestroy, AfterViewInit {
 
   deselectAll(): void {
     this.selectedItems.clear();
+    this.lastSelectedIndex = null;
   }
 
   toggleSelectAll(): void {
@@ -483,13 +512,24 @@ export class MediaGalleryComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   private filterImages() {
-    // Client-side filtering if needed, mostly handled by backend search
-    // But we might filter by status locally if statusFilter is 'FAILED' etc and backend returns all?
-    // Actually backend handles it.
-    // But we need to assign filteredImages for display if we use it?
-    // The template uses groups, which uses this.images directly in updateGroups.
-    // Let's just update groups.
     this.updateGroups();
+  }
+
+  private showFeaturesHint(): void {
+    if (!this.isBrowser) return;
+
+    const hintSeen = localStorage.getItem('gallery_features_hint_seen');
+    if (!hintSeen) {
+      this.snackBar.open(
+        'New: Use Shift + Click for range selection and Esc to deselect all!',
+        'Got it',
+        {
+          duration: 10000,
+          panelClass: ['gallery-hint-snackbar'],
+        },
+      );
+      localStorage.setItem('gallery_features_hint_seen', 'true');
+    }
   }
 
   public searchTerm(): void {

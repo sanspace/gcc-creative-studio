@@ -46,7 +46,10 @@ export class GalleryCardComponent implements OnDestroy {
 
   @Output() mediaItemSelected = new EventEmitter<MediaItemSelection>();
   @Output() mediaSelected = new EventEmitter<GalleryItem>();
-  @Output() selectionToggled = new EventEmitter<GalleryItem>();
+  @Output() selectionToggled = new EventEmitter<{
+    item: GalleryItem;
+    event: MouseEvent;
+  }>();
 
   currentImageIndex = 0;
   loadedMedia: Record<number, boolean> = {};
@@ -140,10 +143,10 @@ export class GalleryCardComponent implements OnDestroy {
     return !!this.loadedMedia[index];
   }
 
-  toggleSelection(event: Event): void {
+  toggleSelection(event: MouseEvent): void {
     event.preventDefault();
     event.stopPropagation();
-    this.selectionToggled.emit(this.item);
+    this.selectionToggled.emit({item: this.item, event});
   }
 
   selectMedia(event: Event): void {
@@ -168,7 +171,7 @@ export class GalleryCardComponent implements OnDestroy {
     event.stopPropagation();
 
     if (this.anyItemSelected) {
-      this.selectionToggled.emit(this.item);
+      this.selectionToggled.emit({item: this.item, event});
       return;
     }
 
