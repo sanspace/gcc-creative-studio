@@ -125,18 +125,11 @@
         
         <!-- Date Range Filter -->
         <div class="flex flex-col self-center">
-          <mat-form-field appearance="outline" class="!mb-0 !p-0 !text-xs studio-date-range" subscriptSizing="dynamic">
-            <mat-date-range-input [rangePicker]="picker" class="!text-white/80">
-              <input matStartDate placeholder="Start" [(ngModel)]="startDateFilter" (dateChange)="searchTerm()">
-              <input matEndDate placeholder="End" [(ngModel)]="endDateFilter" (dateChange)="searchTerm()">
-            </mat-date-range-input>
-            <button mat-icon-button matSuffix *ngIf="startDateFilter || endDateFilter" (click)="clearDates($event)"
-              class="!w-6 !h-6 !leading-none !p-0">
-              <mat-icon class="!text-white/60 !text-sm !mt-[0.1rem]">close</mat-icon>
-            </button>
-            <mat-datepicker-toggle matIconSuffix [for]="picker" class="!text-white/60"></mat-datepicker-toggle>
-            <mat-date-range-picker #picker></mat-date-range-picker>
-          </mat-form-field>
+          <studio-date-range-filter
+            [(startDate)]="startDateFilter"
+            [(endDate)]="endDateFilter"
+            (dateChange)="searchTerm()"
+          ></studio-date-range-filter>
         </div>
 
         <!-- Select All Button -->
@@ -274,7 +267,7 @@
         <!-- No media items found message -->
         <div
           *ngIf="!isLoading && allImagesLoaded && images.length === 0"
-          class="text-center text-white"
+          class="text-center text-white py-10"
         >
           <p *ngIf="!filterByType">No media items found</p>
           <p *ngIf="filterByType">

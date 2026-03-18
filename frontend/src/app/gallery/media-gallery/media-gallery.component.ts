@@ -530,11 +530,4 @@ export class MediaGalleryComponent implements OnInit, OnDestroy, AfterViewInit {
     }
     this.galleryService.setFilters(filters);
   }
-
-  clearDates(event: Event): void {
-    event.stopPropagation();
-    this.startDateFilter = null;
-    this.endDateFilter = null;
-    this.searchTerm();
-  }
 }

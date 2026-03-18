@@ -49,6 +49,7 @@ import {StudioToolbarButtonComponent} from './components/studio-toolbar-button/s
 import {GalleryCardComponent} from './components/gallery-card/gallery-card.component';
 import {StudioDropdownComponent} from './components/studio-dropdown/studio-dropdown.component';
 import {StudioSearchFilterComponent} from './components/studio-search-filter/studio-search-filter.component';
+import {StudioDateRangeFilterComponent} from './components/studio-date-range-filter/studio-date-range-filter.component';
 import {TruncatePipe} from './pipes/truncate.pipe';
 
 const DECLARATIONS = [
@@ -66,6 +67,7 @@ const DECLARATIONS = [
   GalleryCardComponent,
   StudioDropdownComponent,
   StudioSearchFilterComponent,
+  StudioDateRangeFilterComponent,
   TruncatePipe,
 ];
 
