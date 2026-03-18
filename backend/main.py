@@ -20,6 +20,8 @@ setup_logging()
 import logging
 
 logger = logging.getLogger(__name__)
+# Register SQLAlchemy event listeners
+from src.common import events  # noqa: F401
 
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager

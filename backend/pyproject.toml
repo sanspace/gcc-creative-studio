@@ -76,6 +76,7 @@ default = true
 
 [dependency-groups]
 dev = [
+    "aiosqlite>=0.22.1",
     "pre-commit>=4.5.1",
 ]
 

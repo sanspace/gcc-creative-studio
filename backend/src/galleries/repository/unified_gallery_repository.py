@@ -67,7 +67,7 @@ class UnifiedGalleryRepository(
             query = query.where(self.model.status == search_dto.status.value)
 
         # Filter by user_id
-        if search_dto.user_email and user_id is not None:
+        if search_dto.user_email:
             query = query.where(self.model.user_id == user_id)
 
         # Filter by metadata using JSONB operators

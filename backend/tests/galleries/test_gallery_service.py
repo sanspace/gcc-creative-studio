@@ -457,3 +457,61 @@ async def test_bulk_copy_source_asset(service):
     result = await service.bulk_copy(bulk_dto, current_user)
     assert result["copied_count"] == 1
     service.mock_source_asset_repo.create.assert_called_once()
+
+
+@pytest.mark.anyio
+async def test_bulk_delete_different_workspace(service):
+    from src.galleries.dto.bulk_delete_dto import (
+        BulkDeleteDto,
+        BulkDeleteItemDto,
+    )
+
+    bulk_dto = BulkDeleteDto(
+        workspace_id=99,
+        items=[BulkDeleteItemDto(id=1, type="media_item")],
+    )
+    current_user = UserModel(
+        id=1, email="u@t.com", name="U", roles=[UserRoleEnum.USER]
+    )
+
+    # Item in DIFFERENT workspace (88 vs 99)
+    mock_media = MagicMock(id=1, workspace_id=88, user_id=1)
+    service.mock_media_repo.get_by_id.return_value = mock_media
+
+    result = await service.bulk_delete(bulk_dto, current_user)
+    assert result["deleted_count"] == 0
+    assert not service.mock_media_repo.soft_delete.called
+
+
+@pytest.mark.anyio
+async def test_bulk_delete_unauthorized(service):
+    from src.galleries.dto.bulk_delete_dto import (
+        BulkDeleteDto,
+        BulkDeleteItemDto,
+    )
+
+    bulk_dto = BulkDeleteDto(
+        workspace_id=99,
+        items=[BulkDeleteItemDto(id=1, type="media_item")],
+    )
+    current_user = UserModel(
+        id=1, email="u@t.com", name="U", roles=[UserRoleEnum.USER]
+    )
+
+    # Item owned by someone else (2 vs 1)
+    mock_media = MagicMock(id=1, workspace_id=99, user_id=2)
+    service.mock_media_repo.get_by_id.return_value = mock_media
+
+    result = await service.bulk_delete(bulk_dto, current_user)
+    assert result["deleted_count"] == 0
+    assert not service.mock_media_repo.soft_delete.called
+
+
+@pytest.mark.anyio
+async def test_restore_item_unsupported_type(service):
+    admin_user = UserModel(
+        id=1, email="a@t.com", name="A", roles=[UserRoleEnum.ADMIN]
+    )
+    with pytest.raises(HTTPException) as exc:
+        await service.restore_item(1, "unknown_type", admin_user)
+    assert exc.value.status_code == 400
