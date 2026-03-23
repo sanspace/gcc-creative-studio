@@ -51,6 +51,7 @@
         (click)="selectOption(option)"
         [class.selected]="option.value === value"
         class="studio-menu-item"
+        [matTooltip]="option.tooltip || ''"
       >
         <div
           class="flex items-center justify-start gap-4 w-full h-full relative text-left"
