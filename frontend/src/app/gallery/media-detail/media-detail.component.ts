@@ -78,13 +78,6 @@ export class MediaDetailComponent implements OnDestroy {
             : undefined,
           type: 'text',
         },
-        {
-          label: 'Source Assets',
-          value: this.mediaItem.enrichedSourceAssets?.length
-            ? this.mediaItem.enrichedSourceAssets
-            : undefined,
-          type: 'assets',
-        },
       );
 
       if (!isAsset) {

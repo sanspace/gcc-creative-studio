@@ -97,18 +97,6 @@
                 <div class="prop-row" *ngFor="let field of identityFields">
                   <ng-container [ngSwitch]="field.type">
                     
-                    <!-- Assets Grid -->
-                    <div *ngSwitchCase="'assets'" class="w-full">
-                      <div class="label mb-2">{{ field.label }}</div>
-                      <div class="source-grid">
-                        <div *ngFor="let asset of field.value" 
-                             class="source-item" 
-                             (click)="openSourceAssetInLightbox(asset, $event)"
-                             matTooltip="Source Asset: {{ asset.role }}">
-                            <img [src]="asset.presignedThumbnailUrl || asset.presignedUrl" alt="Source">
-                        </div>
-                      </div>
-                    </div>
 
                     <!-- Prompt Display -->
                     <div *ngSwitchCase="'prompt'" class="w-full">
@@ -131,6 +119,33 @@
                     </ng-container>
 
                   </ng-container>
+                </div>
+            </div>
+        </section>
+
+        <!-- SOURCE ASSETS: Reference Assets -->
+        <section *ngIf="mediaItem.enrichedSourceAssets?.length || mediaItem.enrichedSourceMediaItems?.length">
+            <div class="section-header">
+                <mat-icon>link</mat-icon>
+                Source Assets
+            </div>
+            <div class="property-card">
+                <div class="source-grid">
+                    <!-- From uploaded assets -->
+                    <div *ngFor="let asset of mediaItem.enrichedSourceAssets" 
+                         class="source-item" 
+                         (click)="openSourceAssetInLightbox(asset, $event)"
+                         matTooltip="Source Asset: {{ asset.role }}">
+                        <img [src]="asset.presignedThumbnailUrl || asset.presignedUrl" alt="Source">
+                    </div>
+                    <!-- From previously generated media -->
+                    <a *ngFor="let source of mediaItem.enrichedSourceMediaItems" 
+                         [routerLink]="['/gallery', source.mediaItemId]"
+                         [queryParams]="{img_index: source.mediaIndex}"
+                         class="source-item" 
+                         matTooltip="Source Media: {{ source.role }}">
+                        <img [src]="source.presignedThumbnailUrl || source.presignedUrl" alt="Source">
+                    </a>
                 </div>
             </div>
         </section>
