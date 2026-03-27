@@ -65,7 +65,7 @@ export class MediaDetailComponent implements OnDestroy {
         label: 'Status',
         value: this.mediaItem.status
           ? this.mediaItem.status.toUpperCase()
-          : 'UNKNOWN',
+          : null,
         type: 'status',
       },
       {label: 'Mime Type', value: this.mediaItem.mimeType, type: 'text'},
