@@ -21,7 +21,7 @@ import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
 
-from fastapi import Depends
+from fastapi import Depends, HTTPException
 from google.cloud.logging import Client as LoggerClient
 from google.cloud.logging.handlers import CloudLoggingHandler
 from google.genai import types
@@ -817,6 +817,12 @@ class VeoService:
 
         for video_input in request_dto.inputs:
             if video_input.type == "media_item":
+                item = await self.media_repo.get_by_id(video_input.id)
+                if not item or item.mime_type != MimeTypeEnum.VIDEO_MP4:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"MediaItem '{video_input.id}' not found or is not a video.",
+                    )
                 source_media_items.append(
                     SourceMediaItemLink(
                         media_item_id=video_input.id,
@@ -825,6 +831,12 @@ class VeoService:
                     ),
                 )
             elif video_input.type == "source_asset":
+                asset = await self.source_asset_repo.get_by_id(video_input.id)
+                if not asset or asset.mime_type != MimeTypeEnum.VIDEO_MP4:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"SourceAsset '{video_input.id}' not found or is not a video.",
+                    )
                 source_assets.append(
                     SourceAssetLink(
                         asset_id=video_input.id,
