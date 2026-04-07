@@ -183,7 +183,11 @@ export class GalleryCardComponent implements OnDestroy {
   toggleSelection(event: MouseEvent): void {
     event.preventDefault();
     event.stopPropagation();
-    this.selectionToggled.emit({item: this.item, event, selectedIndex: this.currentImageIndex});
+    this.selectionToggled.emit({
+      item: this.item,
+      event,
+      selectedIndex: this.currentImageIndex,
+    });
   }
 
   selectMedia(event: Event): void {
@@ -212,12 +216,20 @@ export class GalleryCardComponent implements OnDestroy {
         mediaItem: this.item as unknown as MediaItem,
         selectedIndex: this.currentImageIndex,
       });
-      this.selectionToggled.emit({item: this.item, event, selectedIndex: this.currentImageIndex});
+      this.selectionToggled.emit({
+        item: this.item,
+        event,
+        selectedIndex: this.currentImageIndex,
+      });
       return;
     }
 
     if (this.anyItemSelected) {
-      this.selectionToggled.emit({item: this.item, event, selectedIndex: this.currentImageIndex});
+      this.selectionToggled.emit({
+        item: this.item,
+        event,
+        selectedIndex: this.currentImageIndex,
+      });
       return;
     }
 
@@ -231,17 +243,18 @@ export class GalleryCardComponent implements OnDestroy {
 
   get displayedTags(): TagModel[] {
     if (!this.item.tags) return [];
-    
+
     let tagsToDisplay = this.item.tags;
-    
+
     if (this.filteredTags && this.filteredTags.length > 0) {
-      tagsToDisplay = this.item.tags.filter(tag => this.filteredTags.includes(tag.name));
-    }
-    
+      tagsToDisplay = this.item.tags.filter(tag =>
+        this.filteredTags.includes(tag.name),
+      );
+
     let totalLength = 0;
     const maxChars = 20; // Heuristic for card width
     const result = [];
-    
+
     for (const tag of tagsToDisplay) {
       if (totalLength + tag.name.length <= maxChars || result.length === 0) {
         result.push(tag);
@@ -250,18 +263,20 @@ export class GalleryCardComponent implements OnDestroy {
         break;
       }
     }
-    
+
     return result;
   }
 
   get hiddenTagsCount(): number {
     if (!this.item.tags) return 0;
-    
+
     let tagsToDisplay = this.item.tags;
     if (this.filteredTags && this.filteredTags.length > 0) {
-      tagsToDisplay = this.item.tags.filter(tag => this.filteredTags.includes(tag.name));
+      tagsToDisplay = this.item.tags.filter(tag =>
+        this.filteredTags.includes(tag.name),
+      );
     }
-    
+
     return tagsToDisplay.length - this.displayedTags.length;
   }
 

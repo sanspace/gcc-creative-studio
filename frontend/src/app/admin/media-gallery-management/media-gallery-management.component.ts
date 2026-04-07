@@ -24,7 +24,11 @@ import {MatSnackBar} from '@angular/material/snack-bar';
 import {firstValueFrom} from 'rxjs';
 import {GalleryService} from '../../gallery/gallery.service';
 import {GalleryItem} from '../../common/models/gallery-item.model';
-import {TagsService, TagModel, PaginationResponseDto} from '../../common/services/tags.service';
+import {
+  TagsService,
+  TagModel,
+  PaginationResponseDto,
+} from '../../common/services/tags.service';
 import {WorkspaceStateService} from '../../services/workspace/workspace-state.service';
 import {GallerySearchDto} from '../../common/models/search.model';
 import {

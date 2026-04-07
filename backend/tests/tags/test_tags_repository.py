@@ -36,9 +36,9 @@ async def test_get_by_workspace():
     repo = TagsRepository(db=mock_db)
     result = await repo.get_by_workspace(1)
 
-    assert len(result) == 1
-    assert result[0].name == "tag1"
-    assert isinstance(result[0], TagModel)
+    assert len(result.data) == 1
+    assert result.data[0].name == "tag1"
+    assert isinstance(result.data[0], TagModel)
 
 
 @pytest.mark.anyio

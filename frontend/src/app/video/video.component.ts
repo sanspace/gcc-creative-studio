@@ -616,7 +616,10 @@ export class VideoComponent implements OnInit, AfterViewInit {
       !this.isConcatenateMode
     ) {
       const veo31Model = this.generationModels.find(
-        m => m.value === 'veo-3.1-generate-001' || m.value === 'veo-3.1-lite-generate-001' || m.value === 'veo-3.1-fast-generate-001',
+        m =>
+          m.value === 'veo-3.1-generate-001' ||
+          m.value === 'veo-3.1-lite-generate-001' ||
+          m.value === 'veo-3.1-fast-generate-001',
       );
       if (veo31Model) {
         this.selectModel(veo31Model);
@@ -880,7 +883,10 @@ export class VideoComponent implements OnInit, AfterViewInit {
 
       if (isVeo30) {
         const veo31Model = this.generationModels.find(
-          m => m.value === 'veo-3.1-generate-001' || m.value === 'veo-3.1-lite-generate-001' || m.value === 'veo-3.1-fast-generate-001',
+          m =>
+            m.value === 'veo-3.1-generate-001' ||
+            m.value === 'veo-3.1-lite-generate-001' ||
+            m.value === 'veo-3.1-fast-generate-001',
         );
         if (veo31Model) {
           this.selectModel(veo31Model);
@@ -1426,7 +1432,10 @@ export class VideoComponent implements OnInit, AfterViewInit {
       }
 
       const veo31Model = this.generationModels.find(
-        m => m.value === 'veo-3.1-generate-001' || m.value === 'veo-3.1-lite-generate-001' || m.value === 'veo-3.1-fast-generate-001',
+        m =>
+          m.value === 'veo-3.1-generate-001' ||
+          m.value === 'veo-3.1-lite-generate-001' ||
+          m.value === 'veo-3.1-fast-generate-001',
       );
       if (
         veo31Model &&

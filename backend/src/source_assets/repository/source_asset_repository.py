@@ -97,7 +97,9 @@ class SourceAssetRepository(BaseRepository[SourceAsset, SourceAssetModel]):
             )
 
         if hasattr(search_dto, "workspace_id") and search_dto.workspace_id:
-            query = query.where(self.model.workspace_id == search_dto.workspace_id)
+            query = query.where(
+                self.model.workspace_id == search_dto.workspace_id
+            )
 
         if hasattr(search_dto, "tags") and search_dto.tags:
             from sqlalchemy import exists

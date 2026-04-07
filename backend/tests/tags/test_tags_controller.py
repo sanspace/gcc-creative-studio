@@ -51,38 +51,54 @@ def fixture_override_dependencies(mock_tags_service, mock_workspace_auth):
 
 
 class TestListTags:
-    """Tests for GET /api/tags/."""
+    """Tests for POST /api/tags/search."""
 
     def test_list_tags_with_workspace_success(
         self, api_client, mock_tags_service
     ):
-        mock_tags_service.list_tags.return_value = [
-            TagModel(id=1, name="tag1", workspace_id=1)
-        ]
+        from src.common.dto.pagination_response_dto import PaginationResponseDto
 
-        response = api_client.get("/api/tags/?workspace_id=1")
+        mock_tags_service.list_tags.return_value = PaginationResponseDto[
+            TagModel
+        ](
+            count=1,
+            page=1,
+            page_size=10,
+            total_pages=1,
+            data=[TagModel(id=1, name="tag1", workspace_id=1)],
+        )
+
+        response = api_client.post("/api/tags/search", json={"workspace_id": 1})
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
-        assert len(data) == 1
-        assert data[0]["name"] == "tag1"
+        assert len(data["data"]) == 1
+        assert data["data"][0]["name"] == "tag1"
 
     def test_list_tags_non_admin_no_workspace_forbidden(self, api_client):
         # Regular user should be forbidden if no workspace is specified
-        response = api_client.get("/api/tags/")
+        response = api_client.post("/api/tags/search", json={})
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
     def test_list_tags_admin_no_workspace_success(
         self, admin_client, mock_tags_service
     ):
-        mock_tags_service.list_tags.return_value = [
-            TagModel(id=1, name="tag1", workspace_id=1)
-        ]
+        from src.common.dto.pagination_response_dto import PaginationResponseDto
 
-        response = admin_client.get("/api/tags/")
+        mock_tags_service.list_tags.return_value = PaginationResponseDto[
+            TagModel
+        ](
+            count=1,
+            page=1,
+            page_size=10,
+            total_pages=1,
+            data=[TagModel(id=1, name="tag1", workspace_id=1)],
+        )
+
+        response = admin_client.post("/api/tags/search", json={})
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
-        assert len(data) == 1
+        assert len(data["data"]) == 1
 
 
 class TestCreateTag:
@@ -133,7 +149,7 @@ class TestBulkAssign:
             "/api/tags/bulk-assign",
             json={
                 "item_ids": [1, 2],
-                "tag_ids": [10],
+                "tag_names": ["tag10"],
                 "item_type": "media_item",
                 "workspace_id": 1,
             },

@@ -47,7 +47,9 @@ class TestListTags:
 
         assert len(result) == 1
         assert result[0].name == "tag1"
-        mock_tags_repo.get_by_workspace.assert_called_once_with(1, None)
+        mock_tags_repo.get_by_workspace.assert_called_once_with(
+            1, None, 10, 0, None
+        )
 
     @pytest.mark.anyio
     async def test_list_tags_without_workspace(
@@ -57,11 +59,15 @@ class TestListTags:
             TagModel(id=1, name="tag1", workspace_id=1)
         ]
 
+        mock_result = MagicMock()
+        mock_result.scalar_one.return_value = 1
+        tags_service.repo.db.execute = AsyncMock(return_value=mock_result)
+
         result = await tags_service.list_tags()
 
-        assert len(result) == 1
-        assert result[0].name == "tag1"
-        mock_tags_repo.find_all.assert_called_once_with()
+        assert len(result.data) == 1
+        assert result.data[0].name == "tag1"
+        mock_tags_repo.find_all.assert_called_once_with(limit=10, offset=0)
 
 
 class TestCreateTag:
@@ -75,11 +81,11 @@ class TestCreateTag:
         )
 
         dto = TagCreateDto(name="new_tag", workspace_id=1)
-        result = await tags_service.create_tag(dto)
+        result = await tags_service.create_tag(dto, user_id=1)
 
         assert result.name == "new_tag"
         mock_tags_repo.find_by_name.assert_called_once_with("new_tag", 1)
-        mock_tags_repo.create.assert_called_once_with(dto)
+        mock_tags_repo.create.assert_called_once()
 
     @pytest.mark.anyio
     async def test_create_tag_already_exists(
@@ -91,7 +97,7 @@ class TestCreateTag:
 
         dto = TagCreateDto(name="existing", workspace_id=1)
         with pytest.raises(HTTPException) as exc_info:
-            await tags_service.create_tag(dto)
+            await tags_service.create_tag(dto, user_id=1)
 
         assert exc_info.value.status_code == 400
         assert "already exists" in exc_info.value.detail
@@ -104,7 +110,7 @@ class TestDeleteTag:
     async def test_delete_tag(self, tags_service, mock_tags_repo):
         mock_tags_repo.delete.return_value = True
 
-        result = await tags_service.delete_tag(1)
+        result = await tags_service.delete_tag(id=1, user_id=1, is_admin=True)
 
         assert result is True
         mock_tags_repo.delete.assert_called_once_with(1)
@@ -117,12 +123,20 @@ class TestBulkAssign:
     async def test_bulk_assign_media_item(self, tags_service, mock_tags_repo):
         dto = BulkAssignTagsDto(
             item_ids=[1, 2],
-            tag_ids=[10, 20],
+            tag_names=["tag10", "tag20"],
             item_type="media_item",
             workspace_id=1,
         )
 
-        result = await tags_service.bulk_assign(dto)
+        mock_tags_repo.find_by_name.side_effect = (
+            lambda name, workspace_id: TagModel(
+                id=10 if name == "tag10" else 20,
+                name=name,
+                workspace_id=workspace_id,
+            )
+        )
+
+        result = await tags_service.bulk_assign(dto, user_id=1)
 
         assert result is True
         assert mock_tags_repo.assign_tag_to_media_item.call_count == 4
@@ -130,10 +144,17 @@ class TestBulkAssign:
     @pytest.mark.anyio
     async def test_bulk_assign_source_asset(self, tags_service, mock_tags_repo):
         dto = BulkAssignTagsDto(
-            item_ids=[1], tag_ids=[10], item_type="source_asset", workspace_id=1
+            item_ids=[1],
+            tag_names=["tag10"],
+            item_type="source_asset",
+            workspace_id=1,
         )
 
-        result = await tags_service.bulk_assign(dto)
+        mock_tags_repo.find_by_name.return_value = TagModel(
+            id=10, name="tag10", workspace_id=1
+        )
+
+        result = await tags_service.bulk_assign(dto, user_id=1)
 
         assert result is True
         mock_tags_repo.assign_tag_to_source_asset.assert_called_once_with(1, 10)
@@ -141,11 +162,14 @@ class TestBulkAssign:
     @pytest.mark.anyio
     async def test_bulk_assign_invalid_type(self, tags_service):
         dto = BulkAssignTagsDto(
-            item_ids=[1], tag_ids=[10], item_type="invalid", workspace_id=1
+            item_ids=[1],
+            tag_names=["tag10"],
+            item_type="invalid",
+            workspace_id=1,
         )
 
         with pytest.raises(HTTPException) as exc_info:
-            await tags_service.bulk_assign(dto)
+            await tags_service.bulk_assign(dto, user_id=1)
 
         assert exc_info.value.status_code == 400
         assert "Invalid item_type" in exc_info.value.detail

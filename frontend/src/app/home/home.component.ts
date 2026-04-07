@@ -899,8 +899,11 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
 
     // Select default editing model only if current model doesn't support it
     const currentModel = this.selectedGenerationModelObject;
-    const supportsIngredients = currentModel?.capabilities?.supportedModes?.includes('Ingredients to Image');
-    
+    const supportsIngredients =
+      currentModel?.capabilities?.supportedModes?.includes(
+        'Ingredients to Image',
+      );
+
     if (!supportsIngredients) {
       const nanoBanana2 = this.generationModels.find(
         m => m.value === 'gemini-3.1-flash-image-preview',

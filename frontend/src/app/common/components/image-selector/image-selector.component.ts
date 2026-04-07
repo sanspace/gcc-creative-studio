@@ -226,26 +226,28 @@ export class ImageSelectorComponent implements OnInit {
     const totalSelected = this.selectedMediaItems.size;
     if (totalSelected === 0) return;
 
-    const results = Array.from(this.selectedMediaItems.values()).map(selection => {
-      const item = (selection as any).mediaItem as any;
-      if (item.itemType === 'source_asset') {
-        return {
-          id: item.id,
-          userId: String(item.userId || ''),
-          gcsUri: item.gcsUris?.[0] || '',
-          originalFilename: item.prompt || '',
-          mimeType: item.mimeType || '',
-          aspectRatio: item.aspectRatio || '',
-          fileHash: '',
-          createdAt: item.createdAt,
-          updatedAt: item.createdAt,
-          presignedUrl: item.presignedUrls?.[0] || '',
-          presignedThumbnailUrl: item.presignedThumbnailUrls?.[0],
-          presignedOriginalUrl: item.originalPresignedUrls?.[0] || '',
-        } as SourceAssetResponseDto;
-      }
-      return selection as unknown as MediaItemSelection;
-    });
+    const results = Array.from(this.selectedMediaItems.values()).map(
+      selection => {
+        const item = (selection as any).mediaItem as any;
+        if (item.itemType === 'source_asset') {
+          return {
+            id: item.id,
+            userId: String(item.userId || ''),
+            gcsUri: item.gcsUris?.[0] || '',
+            originalFilename: item.prompt || '',
+            mimeType: item.mimeType || '',
+            aspectRatio: item.aspectRatio || '',
+            fileHash: '',
+            createdAt: item.createdAt,
+            updatedAt: item.createdAt,
+            presignedUrl: item.presignedUrls?.[0] || '',
+            presignedThumbnailUrl: item.presignedThumbnailUrls?.[0],
+            presignedOriginalUrl: item.originalPresignedUrls?.[0] || '',
+          } as SourceAssetResponseDto;
+        }
+        return selection as unknown as MediaItemSelection;
+      },
+    );
 
     // If multiSelect is false but we somehow got here, return just the first item
     if (!this.data.multiSelect && results.length > 0) {

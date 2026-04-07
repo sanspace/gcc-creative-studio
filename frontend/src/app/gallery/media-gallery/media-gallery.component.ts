@@ -403,7 +403,11 @@ export class MediaGalleryComponent implements OnInit, OnDestroy, AfterViewInit {
     this.deselectAll();
   }
 
-  toggleSelection(item: GalleryItem, event?: MouseEvent, selectedIndex: number = 0): void {
+  toggleSelection(
+    item: GalleryItem,
+    event?: MouseEvent,
+    selectedIndex = 0,
+  ): void {
     if (event) {
       event.preventDefault();
       event.stopPropagation();
@@ -422,14 +426,20 @@ export class MediaGalleryComponent implements OnInit, OnDestroy, AfterViewInit {
         const id = `${rangeItem.itemType}:${rangeItem.id}`;
         if (!this.selectedItems.has(id)) {
           this.selectedItems.add(id);
-          this.mediaSelected.emit({mediaItem: rangeItem as unknown as MediaItem, selectedIndex: 0});
+          this.mediaSelected.emit({
+            mediaItem: rangeItem as unknown as MediaItem,
+            selectedIndex: 0,
+          });
         }
       }
     } else {
       const id = `${item.itemType}:${item.id}`;
       if (this.selectedItems.has(id)) {
         this.selectedItems.delete(id);
-        this.mediaSelected.emit({mediaItem: item as unknown as MediaItem, selectedIndex});
+        this.mediaSelected.emit({
+          mediaItem: item as unknown as MediaItem,
+          selectedIndex,
+        });
       } else {
         // If maxSelection is 1, clear previous and select new
         if (this.maxSelection === 1) {
@@ -441,7 +451,10 @@ export class MediaGalleryComponent implements OnInit, OnDestroy, AfterViewInit {
           return;
         }
         this.selectedItems.add(id);
-        this.mediaSelected.emit({mediaItem: item as unknown as MediaItem, selectedIndex});
+        this.mediaSelected.emit({
+          mediaItem: item as unknown as MediaItem,
+          selectedIndex,
+        });
       }
     }
     this.lastSelectedIndex = currentIndex;
