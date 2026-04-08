@@ -59,6 +59,14 @@ curl https://raw.githubusercontent.com/GoogleCloudPlatform/gcc-creative-studio/r
 
 For better guidance, [we recorded a video](./screenshots/how_to_deploy_creative_studio.mp4) to showcase how to deploy Creative Studio in a completely new and fresh GCP Account.
 
+### Redeploying
+
+To redeploy the latest changes to Creative Studio, simply sync your forked repository with the `main` branch. You can do this by clicking the **"Sync with main"** button on GitHub or manually by running `git pull upstream main` in your local repository.
+
+The Cloud Build triggers will automatically detect the new code changes and start the process to redeploy the application (taking approximately 5 minutes).
+
+In case there are infrastructure changes (e.g., new cloud resources or configuration), you may need to redeploy Creative Studio by running Terraform manually. However, that is usually not the case, and if required, a note will be added to the version release documentation.
+
 <video controls autoplay loop width="100%" style="max-width: 1200px;">
   <source src="./screenshots/how_to_deploy_creative_studio.mp4" type="video/mp4">
   Your browser does not support the video tag. You can <a href="./screenshots/how_to_deploy_creative_studio.mp4">download the video here</a>.
@@ -119,111 +127,29 @@ For the deployment you can use CloudShell which already has all of the necessary
 - `uv` (Python package installer)
 - `terraform` (version 1.13.0 or newer)
 
-## Code Styling & Commit Guidelines
+## 🛡️ Quality Standards & CI/CD
 
-To maintain code quality and consistency:
+To ensure the highest level of quality and security, we enforce strict style guidelines and automated checks both locally and in our CI/CD pipeline.
 
-- **TypeScript (Frontend):** We follow [Angular Coding Style Guide](https://angular.dev/style-guide) by leveraging the use of [Google's TypeScript Style Guide](https://github.com/google/gts) using `gts`. This includes a formatter, linter, and automatic code fixer.
-- **Python (Backend):** We adhere to the [Google Python Style Guide](https://google.github.io/styleguide/pyguide.html), using tools like `pylint` and `black` for linting and formatting.
-- **Commit Messages:** We suggest following [Angular's Commit Message Guidelines](https://github.com/angular/angular/blob/main/contributing-docs/commit-message-guidelines.md) to create clear and descriptive commit messages.
+### 🎨 Code Style Guidelines
+- **Python**: We adhere to the [Google Python Style Guide](https://google.github.io/styleguide/pyguide.html), using `pylint` and `black`.
+- **TypeScript**: We follow the [Angular Coding Style Guide](https://angular.dev/style-guide) and [Google's TypeScript Style Guide](https://github.com/google/gts) using `gts`.
+- **Commit Messages**: We suggest following [Angular's Commit Message Guidelines](https://github.com/angular/angular/blob/main/contributing-docs/commit-message-guidelines.md).
 
-### 🛡️ Automatic Checks with Pre-commit (Recommended)
+### 🌿 Branching Model
+We follow the [Git Flow](https://nvie.com/posts/a-successful-git-branching-model/) branching model. Please create feature branches from `dev` and submit pull requests back to `dev`.
 
-To ensure your code passes styling, linting, and license header checks automatically before every `git commit`, we use a **fully containerized `pre-commit` pipeline**. This eliminates the need for any local installations of Node, Go, or linters on your host machine.
+### ⚙️ Automated Checks (Pre-commit & GitHub Actions)
 
-1.  **Configure the Git Hook Handler**:
-    Run the following command once from the project root directory to link the script for intercepting commits:
+Every Pull Request to `develop`, `test`, or `main` branches undergoes automated checks via GitHub Actions, and you can also run them locally:
 
-    ```bash
-    cp pre-commit-hook.sh .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
-    ```
+- **Local Pre-commit Hook**: Runs in a Docker container on every commit to check styling and licenses. See the [Development Guide](./DEVELOPMENT.md#5-code-quality--pre-commit-hooks) for setup instructions.
+- **Backend Tests**: Minimum **80%** code coverage enforced by `pytest-cov`.
+- **Backend Linting**: Minimum score of **9.0/10** enforced by `pylint`.
+- **Frontend Linting**: Enforced by `gts` in CI.
+- **AI-Powered Review**: Automated reviews powered by Gemini to catch issues early.
 
-2.  **How it Works**:
-    Whenever you run `git commit`, the hook will automatically run inside an isolated Docker container in the background loaded with all linter binaries (`addlicense`, `gts`, `pylint`, `black`, `ruff`). It blocks the commit if any checks fail, enforcing consistency.
-
-3.  **One-Time Repository Cleanup**:
-    To automatically format all backend files (`black`), frontend files (`gts fix`), and add missing license headers (`addlicense`) across the **entire repository** at once (useful for initial cleanup of existing files):
-    ```bash
-    docker compose run --rm pre-commit run --all-files
-    ```
-    _💡 Tip: Inspect the resulting diff and commit it separately to keep your future feature commits focused and small._
-
-### ⚙️ Continuous Integration (CI) with GitHub Actions
-
-To guarantee that only clean, tested code is merged, we run automated validation on every Pull Request or push using **GitHub Actions**:
-
-- **Frontend Checks (`frontend-quality.yml`)**: Triggered on `frontend/**` changes. Spawns Node, installs using clean slate (`npm ci`), and verifies styling with `npx gts lint`.
-- **Backend Checks (`backend-tests.yml`)**: Triggered on `backend/**` changes. Runs code style verification (`black --check`), static rule analysis (`pylint`), and the backend testing suite (`pytest`).
-
-If any check fails, a failure status is reported inside the PR discussion. When combined with GitHub **Branch Protection Rules** (configured in repo settings), this acts as a gatekeeper blocking unformatted or failing code from entering the default branches.
-
-### Frontend (TypeScript with `gts`)
-
-(Assumes setup within the `frontend/` directory)
-
-1.  **Initialize `gts` (if not already done in the project):**
-    Navigate to `frontend/` and run:
-    ```bash
-    npx gts init
-    ```
-    This will set up `gts` and create necessary configuration files (like `tsconfig.json`). Ensure your `tsconfig.json` (or a related `gts` config file like `.gtsrc`) includes an extension for `gts` defaults, typically:
-    ```json
-    {
-      "extends": "./node_modules/gts/tsconfig-google.json"
-      // ... other configurations
-    }
-    ```
-2.  **Check for linting issues:**
-    (This assumes a `lint` script is defined in `frontend/package.json`, e.g., `"lint": "gts lint"`)
-    ```bash
-    # from frontend/ directory
-    npm run lint
-    ```
-3.  **Fix linting issues automatically (where possible):**
-    (This assumes a `fix` script is defined in `frontend/package.json`, e.g., `"fix": "gts fix"`)
-    ```bash
-    # from frontend/ directory
-    npm run fix
-    ```
-
-### Backend (Python with `pylint` and `black`)
-
-(Assumes setup within the `backend/` directory and its virtual environment activated)
-
-1.  **Ensure Dependencies are Installed:**
-    Add `pylint` and `black` to your `backend/requirements.txt` file if not already present:
-    ```
-    pylint
-    black
-    ```
-    Then install them within your virtual environment:
-    ```bash
-    # from backend/ directory, with .venv activated
-    pip install pylint black
-    # or pip install -r requirements.txt
-    ```
-2.  **Configure `pylint`:**
-    It's recommended to have a `.pylintrc` file in your `backend/` directory to configure `pylint` rules. You can generate one if it doesn't exist:
-    ```bash
-    # from backend/ directory
-    pylint --generate-rcfile > .pylintrc
-    ```
-    Customize this file according to your project's needs and the Google Python Style Guide.
-3.  **Check for linting issues with `pylint`:**
-    Navigate to the `backend/` directory and run:
-    ```bash
-    # from backend/ directory
-    pylint .
-    # Or specify modules/packages: pylint your_module_name
-    ```
-4.  **Format code with `black`:**
-    To automatically format all Python files in the `backend/` directory and its subdirectories:
-    ```bash
-    # from backend/ directory
-    python -m black . --line-length=80
-    ```
-
-## Contributing
+## 🛠️ Contributing
 
 We welcome contributions to Creative Studio! Whether it's new templates, features, bug fixes, or documentation improvements, your help is valued.
 
@@ -233,11 +159,11 @@ We welcome contributions to Creative Studio! Whether it's new templates, feature
 - **2-Factor Authentication (2FA)** enabled on your GitHub account.
 - Familiarity with the "Getting Started" section to set up your development environment.
 
-### Branching Model
-
-We follow the [Git Flow](https://nvie.com/posts/a-successful-git-branching-model/) branching model. Please create feature branches from `dev` and submit pull requests back to `dev`.
-
 For more detailed contribution guidelines, please refer to the `CONTRIBUTING.md` file.
+
+### Local Development
+
+For a comprehensive, step-by-step guide on how to set up and run Creative Studio on your local machine using Docker Compose, please refer to the [Local Development Guide](./DEVELOPMENT.md).
 
 ## Feedback
 
@@ -277,138 +203,3 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-
-# Step by step guide | Deploying and working on Creative Studio
-
-This guide provides a comprehensive walkthrough for setting up and running the Creative Studio application **on your local machine**. It covers the **standard local development setup using Docker Compose**.
-
-## 1. Prerequisites
-
-Before you begin, ensure you have the following tools installed on your system:
-
-- **Git**: For cloning the repository.
-- **Google Cloud CLI (gcloud)**: For authenticating and managing your GCP resources.
-- **Github Account**: If you don't already have a GitHub account.
-- **Install Antigravity**: [Download Antigravity](https://antigravity.google/)
-- **Install Docker and docker compose**: [Download Docker](http://docker.com/get-started/)
-- **Install nvm**: [Download nvm](https://github.com/nvm-sh/nvm#installing-and-updating) and then install the latest node version. Version 20 or higher.
-- **Install uv**: A fast Python package installer. [Install it here](https://github.com/astral-sh/uv).
-
-## 2. Initial Setup
-
-1.  Go to your GCP Account and make sure you can login.
-2.  After you create your account:
-    - You create a fork of [Open Source Repo](https://github.com/GoogleCloudPlatform/gcc-creative-studio/tree/main)
-    - You see this video [How to Deploy Creative Studio.mp4](./screenshots/how_to_deploy_creative_studio.mp4) and deploy Creative Studio into your GCP Account environment, using CloudShell for simplicity.
-
-## 3. Add env variables to repo where we’ll work
-
-You can connect to your new GCP Argolis Account by setting a `backend/.env` file for the backend and a `frontend/src/environments/development.environment.ts` file for the frontend.
-
-> **Important!!!** set `isLocal = True`, in both frontend and backend, this is so that instead of loggin in with Identity Platform, we login with Firebase, and we keep Identity Platform Authorized Javascript origins clean, without the need to whitelist localhost.
-
-Add the following env variables in your cloned repo “gcc-creative-studio” modifying the corresponding locations, and replacing with your env values:
-
-### `backend/.env` file
-
-```bash
-# Common env vars
-FRONTEND_URL="http://localhost:4200"
-ENVIRONMENT="local"
-LOG_LEVEL="INFO"
-
-# Project ID: creative-studio-deploy
-GOOGLE_CLOUD_PROJECT="creative-studio-deploy"
-PROJECT_ID="creative-studio-deploy"
-GENMEDIA_BUCKET="creative-studio-deploy-cs-development-bucket"
-SIGNING_SA_EMAIL="cs-development-read@creative-studio-deploy.iam.gserviceaccount.com"
-GOOGLE_TOKEN_AUDIENCE="XXXX-XXXXXXXXXXX.apps.googleusercontent.com"
-IDENTITY_PLATFORM_ALLOWED_ORGS=""
-
-# --- Database Configuration (Local Docker Postgres) ---
-DB_USER="studio_user"
-DB_PASS="studio_pass"
-DB_NAME="creative_studio"
-DB_HOST="postgres"
-DB_PORT="5432"
-USE_CLOUD_SQL_AUTH_PROXY=false
-ADMIN_USER_EMAIL="your-user-email"
-```
-
-> 💡 **Best Practice Tip: Local PostgreSQL Container**
-> For local development and testing, we include a lightweight PostgreSQL Docker container to bypass the need for an actual Cloud SQL instance. This delivers key advantages:
->
-> - **Zero Costs**: Avoids billing accrual on cloud data lookups during validation work cycles.
-> - **Safe Experimentation**: Clear volume bindings locally without risking production states or accidental cloud data drops.
-> - **Instant Migrations Validation**: Speed runs Alembic updates completely isolated and offline.
-
-### `frontend/src/environments/development.environment.ts` file
-
-```typescript
-export const environment = {
-  // Project ID: creative-studio-deploy
-  firebase: {
-    apiKey: "your-api-key",
-    authDomain: "creative-studio-deploy.firebaseapp.com",
-    projectId: "creative-studio-deploy",
-    storageBucket: "creative-studio-deploy.firebasestorage.app",
-    messagingSenderId: "your-messaging-sender-id",
-    appId: "your-app-id",
-    measurementId: "G-XXXXXXXX",
-  },
-  production: false,
-  isLocal: true,
-  GOOGLE_CLIENT_ID: "XXXX-XXXXXXXXXXX.apps.googleusercontent.com",
-  backendURL: "http://localhost:8080/api",
-
-  // Common env vars
-  EMAIL_REGEX:
-    /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/,
-  ADMIN: "admin",
-};
-```
-
-## 4. Running with Docker Compose
-
-We use Docker to build and run both the frontend and backend containers, simplifying the setup process.
-
-After installation and before running docker compose, be sure to set your default gcloud login:
-
-```bash
-# Set the target project for the deployment
-gcloud config set project $PROJECT_ID
-
-# Set up application-default credentials
-gcloud auth application-default login
-```
-
-And also to give your account access to presign the urls you’ll get on your frontend:
-
-```bash
-export PROJECT_ID=$(gcloud config get project)
-export USER_EMAIL=$(gcloud config get account)
-
-gcloud iam service-accounts add-iam-policy-binding cs-development-read@$PROJECT_ID.iam.gserviceaccount.com --member="user:$USER_EMAIL" --role="roles/iam.serviceAccountTokenCreator"
-```
-
-You are all set, from the root of the project, run the following command:
-
-```bash
-docker compose up
-```
-
-### 💡 Seeding Initial Workspaces (Local Development/Testing)
-
-If you are running this locally for the first time or your database is fresh, you might find that the Workspaces list is empty. You should run the bootstrap script once to seed default templates and verify access:
-
-```bash
-docker exec -t creative-studio-backend sh -c "PYTHONPATH=/app uv run python -m bootstrap.bootstrap"
-```
-
-As this uses volumes, and we use hot reload to start the services, every time you change something on the files the container will be refreshed with the changes.
-
-## 5. Deployment
-
-To deploy the latest changes to Creative Studio, usually you just need to click on the **"Sync with main"** button on your GitHub fork. This will pull the latest changes from the main repository. The CI/CD triggers will automatically detect the new code changes and redeploy the application.
-
-In case there were infrastructure changes (e.g., new cloud resources or configuration), you may need to redeploy Creative Studio by running Terraform manually. However, that is usually not the case but if required, we will add a note to the version release doc.

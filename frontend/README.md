@@ -34,7 +34,7 @@ export const environment = {
 
 ### 2. Running the Application
 
-We use Docker Compose to run the application locally. Please refer to the [Root README](../README.md#4-running-with-docker-compose) for detailed instructions on how to start the services.
+We use Docker Compose to run the application locally. Please refer to the [Development Guide](../DEVELOPMENT.md) for detailed instructions on how to start the services.
 
 If you want to start just the frontend you can run the following command:
 
