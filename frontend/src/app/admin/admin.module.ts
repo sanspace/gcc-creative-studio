@@ -55,6 +55,7 @@ import {SourceAssetFormComponent} from './source-assets-management/source-asset-
 import {SourceAssetUploadFormComponent} from './source-assets-management/source-asset-upload-form/source-asset-upload-form.component';
 import {SharedModule} from '../common/shared.module';
 import {MediaGalleryManagementComponent} from './media-gallery-management/media-gallery-management.component';
+import {TagsManagementComponent} from './tags-management/tags-management.component';
 
 @NgModule({
   declarations: [
@@ -67,6 +68,7 @@ import {MediaGalleryManagementComponent} from './media-gallery-management/media-
     SourceAssetFormComponent,
     SourceAssetUploadFormComponent,
     MediaGalleryManagementComponent,
+    TagsManagementComponent,
   ],
   imports: [
     CommonModule,

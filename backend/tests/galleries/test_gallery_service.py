@@ -50,6 +50,7 @@ def fixture_service():
     mock_workspace_auth = AsyncMock()
     mock_imagen_service = AsyncMock()
     mock_gcs_service = MagicMock()
+    mock_tags_repo = AsyncMock()
 
     service = GalleryService(
         media_repo=mock_media_repo,
@@ -61,6 +62,7 @@ def fixture_service():
         workspace_auth=locals().get("workspace_auth", mock_workspace_auth),
         imagen_service=mock_imagen_service,
         gcs_service=mock_gcs_service,
+        tags_repo=mock_tags_repo,
     )
 
     # Attach mocks for ease of use in tests
@@ -72,6 +74,7 @@ def fixture_service():
     service.mock_iam_signer = mock_iam_signer
     service.mock_workspace_auth = mock_workspace_auth
     service.mock_gcs_service = mock_gcs_service
+    service.mock_tags_repo = mock_tags_repo
 
     return service
 

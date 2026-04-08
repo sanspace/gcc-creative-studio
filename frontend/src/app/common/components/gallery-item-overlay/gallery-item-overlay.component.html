@@ -19,13 +19,7 @@
   <div class="icon-container left-icon">
     <!-- Item Type Icon -->
     <mat-icon *ngIf="itemType === 'media_item'" svgIcon="gemini-spark-icon" class="!w-4 !h-4"></mat-icon>
-    <mat-icon *ngIf="itemType === 'source_asset'" class="!w-4 !h-4 !text-base">cloud_upload</mat-icon>
+    <mat-icon *ngIf="itemType === 'source_asset'" class="!w-4 !h-4 !text-base !overflow-visible">cloud_upload</mat-icon>
   </div>
 
-  <!-- Media Type Icon -->
-  <div class="icon-container right-icon">
-    <mat-icon *ngIf="mimeType?.startsWith('video/')" class="!w-4 !h-4 !text-base">videocam</mat-icon>
-    <mat-icon *ngIf="mimeType?.startsWith('audio/')" class="!w-4 !h-4 !text-base">audiotrack</mat-icon>
-    <mat-icon *ngIf="mimeType?.startsWith('image/')" class="!w-4 !h-4 !text-base">image</mat-icon>
-  </div>
 </div>

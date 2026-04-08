@@ -34,7 +34,7 @@
   <div
     class="dropdown-panel"
     *ngIf="isOpen"
-    [@dropdownAnimation]="isOpen ? 'open' : 'closed'"
+    [@dropdownAnimation]
   >
     <div
       class="menu-header"
@@ -44,22 +44,48 @@
       {{ menuTitle }}
     </div>
 
+    <!-- Search Input -->
+    <div class="search-container" *ngIf="searchable" (click)="$event.stopPropagation()">
+      <mat-icon>search</mat-icon>
+      <input [value]="searchQuery" (input)="onSearchInput($event)" placeholder="Search tags...">
+    </div>
+
+    <!-- Generic Checkbox -->
+    <div class="checkbox-container px-4 py-2 text-white text-xs" *ngIf="showCheckbox" (click)="$event.stopPropagation()">
+      <mat-checkbox [checked]="checkboxChecked" (change)="checkboxChange.emit($event.checked)">
+        {{ checkboxLabel }}
+      </mat-checkbox>
+    </div>
+
     <div class="menu-items">
       <button
         mat-button
         *ngFor="let option of options"
         (click)="selectOption(option)"
-        [class.selected]="option.value === value"
+        [class.selected]="multiple ? value?.includes(option.value) : option.value === value"
         class="studio-menu-item"
       >
         <div
           class="flex items-center justify-start gap-4 w-full h-full relative text-left"
         >
+          <mat-icon *ngIf="multiple && value?.includes(option.value)" class="text-primary">check</mat-icon>
+          <!-- Color Dot -->
+          <span *ngIf="option.color" class="color-dot" [style.backgroundColor]="option.color"></span>
           <!-- Label in the Middle -->
-          <span class="option-label truncate text-left w-full">{{
+          <span class="option-label truncate text-left">{{
             option.label
           }}</span>
-        </div>
+          <!-- Delete Button -->
+          <!-- <button mat-icon-button *ngIf="deletable && option.deletable !== false" (click)="onDeleteOption(option, $event)"
+                      class="delete-btn">
+            <mat-icon>delete</mat-icon>
+          </button> -->
+          </div>
+      </button>
+      <!-- Load More Button -->
+      <button mat-button *ngIf="hasMore" (click)="loadMore.emit(); $event.stopPropagation();"
+        class="studio-menu-item justify-center" style="color: #a8c7fa !important;">
+        Load More
       </button>
     </div>
   </div>

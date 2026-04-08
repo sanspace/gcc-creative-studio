@@ -148,6 +148,7 @@ export class GalleryService implements OnDestroy {
     body: GallerySearchDto,
   ): Observable<PaginatedGalleryResponse> {
     this.isLoading$.next(true);
+
     const galleryUrl = `${environment.backendURL}/gallery/search`;
     return this.http
       .post<PaginatedGalleryResponse>(galleryUrl, body)
@@ -242,6 +243,7 @@ export class GalleryService implements OnDestroy {
     const metadata = item.metadata || {};
     const galleryItem: GalleryItem = {
       id: item.id,
+      tags: item.tags,
       workspaceId: item.workspaceId,
       userId: item.userId,
       createdAt: item.createdAt,

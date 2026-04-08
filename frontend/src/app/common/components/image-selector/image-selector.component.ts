@@ -14,13 +14,14 @@
  * limitations under the License.
  */
 
-import {Component, Inject, ViewChild} from '@angular/core';
+import {Component, Inject, OnInit, ViewChild} from '@angular/core';
 import {
   MAT_DIALOG_DATA,
   MatDialog,
   MatDialogRef,
 } from '@angular/material/dialog';
 import {finalize, Observable} from 'rxjs';
+import {UserService} from '../../services/user.service';
 import {
   SourceAssetResponseDto,
   SourceAssetService,
@@ -40,11 +41,12 @@ export interface MediaItemSelection {
   templateUrl: './image-selector.component.html',
   styleUrls: ['./image-selector.component.scss'],
 })
-export class ImageSelectorComponent {
+export class ImageSelectorComponent implements OnInit {
   isUploading = false;
   isDragging = false;
   selectedMediaItems = new Map<string, any>();
   shouldCrop = false;
+  currentUserEmail: string | null = null;
 
   @ViewChild(MediaGalleryComponent) mediaGallery!: MediaGalleryComponent;
 
@@ -52,6 +54,7 @@ export class ImageSelectorComponent {
     public dialogRef: MatDialogRef<ImageSelectorComponent>,
     private sourceAssetService: SourceAssetService,
     private dialog: MatDialog,
+    private userService: UserService,
     @Inject(MAT_DIALOG_DATA)
     public data: {
       mimeType:
@@ -70,6 +73,11 @@ export class ImageSelectorComponent {
     },
   ) {
     this.dialogRef.addPanelClass('image-selector-dialog');
+  }
+
+  ngOnInit(): void {
+    const userDetails = this.userService.getUserDetails();
+    this.currentUserEmail = userDetails?.email || null;
   }
 
   // This method is called by the file input or drop event inside this component
@@ -165,8 +173,9 @@ export class ImageSelectorComponent {
     }
   }
 
-  onMediaSelected(item: any): void {
-    const id = `${item.itemType}:${item.id}`;
+  onMediaSelected(selection: MediaItemSelection): void {
+    const item = selection.mediaItem as any;
+    const id = `${item.itemType || 'media_item'}:${item.id}`;
     if (this.selectedMediaItems.has(id)) {
       this.selectedMediaItems.delete(id);
     } else {
@@ -178,8 +187,10 @@ export class ImageSelectorComponent {
       ) {
         return;
       }
-      this.selectedMediaItems.set(id, item);
+      this.selectedMediaItems.set(id, selection);
     }
+    // Recreate Map to trigger change detection
+    this.selectedMediaItems = new Map(this.selectedMediaItems);
   }
 
   onMediaItemSelected(selection: MediaItemSelection): void {
@@ -215,28 +226,28 @@ export class ImageSelectorComponent {
     const totalSelected = this.selectedMediaItems.size;
     if (totalSelected === 0) return;
 
-    const results = Array.from(this.selectedMediaItems.values()).map(item => {
-      if (item.itemType === 'source_asset') {
-        return {
-          id: item.id,
-          userId: String(item.userId || ''),
-          gcsUri: item.gcsUris?.[0] || '',
-          originalFilename: item.prompt || '',
-          mimeType: item.mimeType || '',
-          aspectRatio: item.aspectRatio || '',
-          fileHash: '',
-          createdAt: item.createdAt,
-          updatedAt: item.createdAt,
-          presignedUrl: item.presignedUrls?.[0] || '',
-          presignedThumbnailUrl: item.presignedThumbnailUrls?.[0],
-          presignedOriginalUrl: item.originalPresignedUrls?.[0] || '',
-        } as SourceAssetResponseDto;
-      }
-      return {
-        mediaItem: item as MediaItem,
-        selectedIndex: 0,
-      } as MediaItemSelection;
-    });
+    const results = Array.from(this.selectedMediaItems.values()).map(
+      selection => {
+        const item = (selection as any).mediaItem as any;
+        if (item.itemType === 'source_asset') {
+          return {
+            id: item.id,
+            userId: String(item.userId || ''),
+            gcsUri: item.gcsUris?.[0] || '',
+            originalFilename: item.prompt || '',
+            mimeType: item.mimeType || '',
+            aspectRatio: item.aspectRatio || '',
+            fileHash: '',
+            createdAt: item.createdAt,
+            updatedAt: item.createdAt,
+            presignedUrl: item.presignedUrls?.[0] || '',
+            presignedThumbnailUrl: item.presignedThumbnailUrls?.[0],
+            presignedOriginalUrl: item.originalPresignedUrls?.[0] || '',
+          } as SourceAssetResponseDto;
+        }
+        return selection as unknown as MediaItemSelection;
+      },
+    );
 
     // If multiSelect is false but we somehow got here, return just the first item
     if (!this.data.multiSelect && results.length > 0) {

@@ -81,6 +81,7 @@ import {ImageCropperDialogComponent} from './common/components/image-cropper-dia
 import {ImageSelectorComponent} from './common/components/image-selector/image-selector.component';
 import {MediaLightboxComponent} from './common/components/media-lightbox/media-lightbox.component';
 import {SourceAssetGalleryComponent} from './common/components/source-asset-gallery/source-asset-gallery.component';
+import {AssignTagsDialogComponent} from './common/components/assign-tags-dialog/assign-tags-dialog.component';
 import {SharedModule} from './common/shared.module';
 import {AddVoiceDialogComponent} from './components/add-voice-dialog/add-voice-dialog.component';
 import {FooterComponent} from './footer/footer.component';
@@ -117,6 +118,7 @@ import {UpscaleComponent} from './upscale/upscale.component';
     FunTemplatesComponent,
     VideoComponent,
     MediaGalleryComponent,
+    AssignTagsDialogComponent,
     MediaDetailComponent,
     MediaLightboxComponent,
     VtoComponent,

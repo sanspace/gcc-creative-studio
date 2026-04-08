@@ -122,6 +122,19 @@
   >
     <mat-icon *ngIf="isSelected">check</mat-icon>
   </div>
+  
+  <!-- Tags Section -->
+  <div class="tags-section" *ngIf="(item.tags?.length ?? 0) > 0 || isAdmin">
+    <mat-chip-set>
+      <mat-chip *ngFor="let tag of displayedTags" class="!min-h-[16px] !text-[9px] !px-1" [style.--tag-color]="tag.color || '#E8EAED'">
+        {{ tag.name }}
+      </mat-chip>
+      <mat-chip *ngIf="hiddenTagsCount > 0" class="!min-h-[16px] !text-[9px] !px-1 !bg-neutral-800 !text-white">
+        +{{ hiddenTagsCount }} more
+      </mat-chip>
+    </mat-chip-set>
+  </div>
+  
   </div>
 
   <!-- Carousel Controls: Only show if there's more than one image -->

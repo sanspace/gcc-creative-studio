@@ -18,6 +18,7 @@ from src.common.schema.media_item_model import (
     SourceAssetLink,
     SourceMediaItemLink,
 )
+from src.tags.schema.tags_model import TagModel
 
 
 class SourceAssetLinkResponse(SourceAssetLink):
@@ -47,3 +48,4 @@ class MediaItemResponse(MediaItemModel):
     presigned_thumbnail_urls: list[str] | None = []
     enriched_source_assets: list[SourceAssetLinkResponse] | None = None
     enriched_source_media_items: list[SourceMediaItemLinkResponse] | None = None
+    tags: list[TagModel] | None = None

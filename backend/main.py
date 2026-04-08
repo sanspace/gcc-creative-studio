@@ -47,6 +47,7 @@ from src.multimodal.gemini_controller import router as gemini_router
 from src.source_assets.source_asset_controller import (
     router as source_asset_router,
 )
+from src.tags.tags_controller import router as tags_router
 from src.users.user_controller import router as user_router
 from src.videos.veo_controller import router as video_router
 from src.workbench.router import router as workbench_router
@@ -172,6 +173,7 @@ app.include_router(user_router)
 app.include_router(generation_options_router)
 app.include_router(media_template_router)
 app.include_router(source_asset_router)
+app.include_router(tags_router)
 app.include_router(workspace_router)
 app.include_router(brand_guideline_router)
 app.include_router(workflow_router)

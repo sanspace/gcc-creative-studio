@@ -43,6 +43,7 @@ from src.source_assets.dto.vto_assets_response_dto import VtoAssetsResponseDto
 from src.source_assets.repository.source_asset_repository import (
     SourceAssetRepository,
 )
+from src.tags.repository.tags_repository import TagsRepository
 from src.source_assets.schema.source_asset_model import (
     AssetScopeEnum,
     AssetTypeEnum,
@@ -64,12 +65,14 @@ class SourceAssetService:
         gcs_service: GcsService = Depends(),
         iam_signer: IamSignerCredentials = Depends(),
         imagen_service: ImagenService = Depends(),
+        tags_repo: TagsRepository = Depends(),
     ):
         self.repo = repo
         self.user_repo = user_repo
         self.gcs_service = gcs_service
         self.iam_signer = iam_signer
         self.imagen_service = imagen_service  # Service to perform the upscale
+        self.tags_repo = tags_repo
 
     async def _get_and_validate_aspect_ratio(
         self,
@@ -616,7 +619,11 @@ class SourceAssetService:
         if owner:
             owner_email = owner.email
 
-        return await self._create_asset_response(asset, user_email=owner_email)
+        response = await self._create_asset_response(
+            asset, user_email=owner_email
+        )
+        response.tags = await self.tags_repo.get_tags_for_source_asset(asset_id)
+        return response
 
     async def create_from_gcs_uri(
         self,

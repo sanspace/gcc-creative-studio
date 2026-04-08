@@ -15,8 +15,15 @@
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_validator,
+)
 from pydantic.alias_generators import to_camel
+from src.tags.schema.tags_model import TagModel
 
 
 class UnifiedGalleryItemResponse(BaseModel):
@@ -29,6 +36,7 @@ class UnifiedGalleryItemResponse(BaseModel):
     status: str | None = None
     gcs_uris: list[str] = []
     thumbnail_uris: list[str] = []
+    tags: list[TagModel] = []
     deleted_at: datetime | None = None  # To support frontend filters
     # Map from 'metadata_' in SQLAlchemy model to 'metadata' in Pydantic
     metadata: dict[str, Any] = Field(
@@ -42,6 +50,19 @@ class UnifiedGalleryItemResponse(BaseModel):
         if isinstance(v, dict):
             return {to_camel(k): val for k, val in v.items()}
         return v
+
+    @model_validator(mode="after")
+    def extract_tags_from_metadata(self) -> "UnifiedGalleryItemResponse":
+        """Extracts tags from metadata if present."""
+        if self.metadata and "tags" in self.metadata:
+            tags_val = self.metadata.pop("tags")
+            if isinstance(tags_val, list):
+                self.tags = [
+                    TagModel.model_validate(t)
+                    for t in tags_val
+                    if isinstance(t, dict)
+                ]
+        return self
 
     # Presigned URLs will be injected by the service
     presigned_urls: list[str] = []

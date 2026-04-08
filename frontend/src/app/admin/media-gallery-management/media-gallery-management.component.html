@@ -63,6 +63,15 @@
     </mat-form-field>
 
     <mat-form-field appearance="outline" class="!mb-0">
+      <mat-label>Tags</mat-label>
+      <mat-select [(ngModel)]="filterTags" (selectionChange)="applyFilters()" multiple>
+        <mat-option *ngFor="let tag of tagOptions" [value]="tag.value">
+          {{ tag.label }}
+        </mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="!mb-0">
       <mat-label>Date Range</mat-label>
       <mat-date-range-input [rangePicker]="picker">
         <input matStartDate placeholder="Start date" [(ngModel)]="filterStartDate" (dateChange)="applyFilters()">
