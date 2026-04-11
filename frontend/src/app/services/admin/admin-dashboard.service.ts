@@ -14,10 +14,10 @@
  limitations under the License.
 */
 
-import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
-import { map } from 'rxjs/operators';
+import {Injectable} from '@angular/core';
+import {HttpClient} from '@angular/common/http';
+import {Observable} from 'rxjs';
+import {map} from 'rxjs/operators';
 
 export interface AdminOverviewStats {
   totalUsers: number;
@@ -61,50 +61,49 @@ export interface AdminMonthlyActiveUsers {
 }
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class AdminDashboardService {
-  private baseUrl = '/api/v1/admin';
+  private baseUrl = '/api/admin';
 
   constructor(private http: HttpClient) {}
 
-  getOverviewStats(startDate?: string, endDate?: string): Observable<AdminOverviewStats> {
-    const params = startDate && endDate ? `?start_date=${startDate}&end_date=${endDate}` : '';
-    return this.http.get<any>(`${this.baseUrl}/overview-stats${params}`).pipe(
-      map(data => ({
-        totalUsers: data.total_users,
-        totalWorkspaces: data.total_workspaces,
-        imagesGenerated: data.images_generated,
-        videosGenerated: data.videos_generated,
-        audiosGenerated: data.audios_generated,
-        totalMedia: data.total_media
-      }))
+  getOverviewStats(
+    startDate?: string,
+    endDate?: string,
+  ): Observable<AdminOverviewStats> {
+    const params =
+      startDate && endDate
+        ? `?start_date=${startDate}&end_date=${endDate}`
+        : '';
+    return this.http.get<AdminOverviewStats>(
+      `${this.baseUrl}/overview-stats${params}`,
     );
   }
 
-  getMediaOverTime(startDate?: string, endDate?: string): Observable<AdminMediaOverTime[]> {
-    const params = startDate && endDate ? `?start_date=${startDate}&end_date=${endDate}` : '';
-    return this.http.get<any[]>(`${this.baseUrl}/media-over-time${params}`).pipe(
-      map(items => items.map(item => ({
-        date: item.date,
-        totalGenerated: item.total_generated,
-        images: item.images,
-        videos: item.videos,
-        audios: item.audios
-      })))
+  getMediaOverTime(
+    startDate?: string,
+    endDate?: string,
+  ): Observable<AdminMediaOverTime[]> {
+    const params =
+      startDate && endDate
+        ? `?start_date=${startDate}&end_date=${endDate}`
+        : '';
+    return this.http.get<AdminMediaOverTime[]>(
+      `${this.baseUrl}/media-over-time${params}`,
     );
   }
 
-  getWorkspaceStats(): Observable<AdminWorkspaceStats[]> {
-    return this.http.get<any[]>(`${this.baseUrl}/workspace-stats`).pipe(
-      map(items => items.map(item => ({
-        workspaceId: item.workspace_id,
-        workspaceName: item.workspace_name,
-        totalMedia: item.total_media,
-        images: item.images || 0,
-        videos: item.videos || 0,
-        audios: item.audios || 0
-      })))
+  getWorkspaceStats(
+    startDate?: string,
+    endDate?: string,
+  ): Observable<AdminWorkspaceStats[]> {
+    const params =
+      startDate && endDate
+        ? `?start_date=${startDate}&end_date=${endDate}`
+        : '';
+    return this.http.get<AdminWorkspaceStats[]>(
+      `${this.baseUrl}/workspace-stats${params}`,
     );
   }
 
@@ -112,12 +111,22 @@ export class AdminDashboardService {
     return this.http.get<AdminActiveRole[]>(`${this.baseUrl}/active-roles`);
   }
 
-  getGenerationHealth(startDate?: string, endDate?: string): Observable<AdminGenerationHealth[]> {
-    const params = startDate && endDate ? `?start_date=${startDate}&end_date=${endDate}` : '';
-    return this.http.get<AdminGenerationHealth[]>(`${this.baseUrl}/generation-health${params}`);
+  getGenerationHealth(
+    startDate?: string,
+    endDate?: string,
+  ): Observable<AdminGenerationHealth[]> {
+    const params =
+      startDate && endDate
+        ? `?start_date=${startDate}&end_date=${endDate}`
+        : '';
+    return this.http.get<AdminGenerationHealth[]>(
+      `${this.baseUrl}/generation-health${params}`,
+    );
   }
 
   getActiveUsersMonthly(): Observable<AdminMonthlyActiveUsers[]> {
-    return this.http.get<AdminMonthlyActiveUsers[]>(`${this.baseUrl}/active-users-monthly`);
+    return this.http.get<AdminMonthlyActiveUsers[]>(
+      `${this.baseUrl}/active-users-monthly`,
+    );
   }
 }

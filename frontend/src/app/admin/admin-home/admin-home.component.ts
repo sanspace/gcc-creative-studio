@@ -14,18 +14,36 @@
  limitations under the License.
 */
 
-import { Component, OnInit, ElementRef, ViewChild, AfterViewInit, OnDestroy, Inject, PLATFORM_ID, HostListener } from '@angular/core';
-import { isPlatformBrowser } from '@angular/common';
-import { Observable, of, forkJoin } from 'rxjs';
-import { map, catchError, filter, tap } from 'rxjs/operators';
-import { AuthService } from '../../common/services/auth.service';
-import { AdminDashboardService, AdminOverviewStats, AdminMediaOverTime, AdminWorkspaceStats, AdminActiveRole, AdminGenerationHealth, AdminMonthlyActiveUsers } from '../../services/admin/admin-dashboard.service';
+import {
+  Component,
+  OnInit,
+  ElementRef,
+  ViewChild,
+  AfterViewInit,
+  OnDestroy,
+  Inject,
+  PLATFORM_ID,
+  HostListener,
+} from '@angular/core';
+import {isPlatformBrowser} from '@angular/common';
+import {Observable, of, forkJoin} from 'rxjs';
+import {map, catchError, filter, tap} from 'rxjs/operators';
+import {AuthService} from '../../common/services/auth.service';
+import {
+  AdminDashboardService,
+  AdminOverviewStats,
+  AdminMediaOverTime,
+  AdminWorkspaceStats,
+  AdminActiveRole,
+  AdminGenerationHealth,
+  AdminMonthlyActiveUsers,
+} from '../../services/admin/admin-dashboard.service';
 import * as d3 from 'd3';
 
 @Component({
   selector: 'app-admin-home',
   templateUrl: './admin-home.component.html',
-  styleUrls: ['./admin-home.component.scss']
+  styleUrls: ['./admin-home.component.scss'],
 })
 export class AdminHomeComponent implements OnInit, AfterViewInit, OnDestroy {
   isSuperAdmin$: Observable<boolean>;
@@ -37,10 +55,11 @@ export class AdminHomeComponent implements OnInit, AfterViewInit, OnDestroy {
   monthlyActiveUsers$: Observable<AdminMonthlyActiveUsers[] | null> = of(null);
 
   private monthlyUsersData: AdminMonthlyActiveUsers[] = [];
-  @ViewChild('monthlyUsersChart') private monthlyUsersChartContainer!: ElementRef;
+  @ViewChild('monthlyUsersChart')
+  private monthlyUsersChartContainer!: ElementRef;
 
-  startDate: string = '';
-  endDate: string = '';
+  startDate = '';
+  endDate = '';
   startCalendarDate: Date | null = null;
   endCalendarDate: Date | null = null;
 
@@ -57,7 +76,7 @@ export class AdminHomeComponent implements OnInit, AfterViewInit, OnDestroy {
   constructor(
     private authService: AuthService,
     private adminService: AdminDashboardService,
-    @Inject(PLATFORM_ID) private platformId: Object
+    @Inject(PLATFORM_ID) private platformId: Object,
   ) {
     this.isSuperAdmin$ = of(this.authService.isUserAdmin());
   }
@@ -71,61 +90,65 @@ export class AdminHomeComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   loadAllStats(startDate?: string, endDate?: string): void {
-    this.overviewStats$ = this.adminService.getOverviewStats(startDate, endDate).pipe(
-      catchError(err => { console.error(err); return of(null); })
-    );
+    this.overviewStats$ = this.adminService
+      .getOverviewStats(startDate, endDate)
+      .pipe(
+        catchError(err => {
+          console.error(err);
+          return of(null);
+        }),
+      );
 
     this.adminService.getMediaOverTime(startDate, endDate).subscribe({
-      next: (data) => {
+      next: data => {
         this.mediaData = data || [];
         if (isPlatformBrowser(this.platformId)) {
           this.renderMediaChart(this.mediaData);
         }
       },
-      error: (err) => console.error('Error fetching media over time:', err)
+      error: err => console.error('Error fetching media over time:', err),
     });
 
     this.adminService.getGenerationHealth(startDate, endDate).subscribe({
-      next: (data) => {
+      next: data => {
         this.healthData = data || [];
         if (isPlatformBrowser(this.platformId)) {
           this.renderHealthChart(this.healthData);
         }
       },
-      error: (err) => console.error('Error fetching generation health:', err)
+      error: err => console.error('Error fetching generation health:', err),
     });
 
-    this.adminService.getWorkspaceStats().subscribe({
-      next: (data) => {
+    this.adminService.getWorkspaceStats(startDate, endDate).subscribe({
+      next: data => {
         this.workspaceData = data || [];
         if (isPlatformBrowser(this.platformId)) {
           this.renderWorkspaceChart(this.workspaceData);
         }
       },
-      error: (err) => console.error('Error fetching workspace stats:', err)
+      error: err => console.error('Error fetching workspace stats:', err),
     });
 
     this.adminService.getActiveRoles().subscribe({
-      next: (data) => {
+      next: data => {
         this.rolesData = data || [];
         if (isPlatformBrowser(this.platformId)) {
           this.renderActiveRolesChart(this.rolesData);
         }
       },
-      error: (err) => console.error('Error fetching active roles:', err)
+      error: err => console.error('Error fetching active roles:', err),
     });
 
     this.adminService.getActiveUsersMonthly().subscribe({
-      next: (data) => {
+      next: data => {
         this.monthlyUsersData = data || [];
         if (isPlatformBrowser(this.platformId)) {
           this.renderMonthlyActiveUsersChart(this.monthlyUsersData);
         }
       },
-      error: (err) => console.error('Error fetching monthly active users:', err)
+      error: err => console.error('Error fetching monthly active users:', err),
     });
   }
-
 
   onDateFilterChange(): void {
     if (this.startDate && this.endDate) {
@@ -133,7 +156,10 @@ export class AdminHomeComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  onCalendarDateChange(event: { startDate: Date | null, endDate: Date | null }): void {
+  onCalendarDateChange(event: {
+    startDate: Date | null;
+    endDate: Date | null;
+  }): void {
     this.startCalendarDate = event.startDate;
     this.endCalendarDate = event.endDate;
 
@@ -149,8 +175,14 @@ export class AdminHomeComponent implements OnInit, AfterViewInit, OnDestroy {
     this.startDate = formatDate(this.startCalendarDate);
     this.endDate = formatDate(this.endCalendarDate);
 
-    if ((this.startDate && this.endDate) || (!this.startDate && !this.endDate)) {
-      this.loadAllStats(this.startDate ? this.startDate : undefined, this.endDate ? this.endDate : undefined);
+    if (
+      (this.startDate && this.endDate) ||
+      (!this.startDate && !this.endDate)
+    ) {
+      this.loadAllStats(
+        this.startDate ? this.startDate : undefined,
+        this.endDate ? this.endDate : undefined,
+      );
     }
   }
 
@@ -162,7 +194,8 @@ export class AdminHomeComponent implements OnInit, AfterViewInit, OnDestroy {
   private refreshCharts() {
     if (!isPlatformBrowser(this.platformId)) return;
     if (this.mediaData.length) this.renderMediaChart(this.mediaData);
-    if (this.workspaceData.length) this.renderWorkspaceChart(this.workspaceData);
+    if (this.workspaceData.length)
+      this.renderWorkspaceChart(this.workspaceData);
     if (this.rolesData.length) this.renderActiveRolesChart(this.rolesData);
     if (this.healthData.length) this.renderHealthChart(this.healthData);
   }
@@ -175,103 +208,120 @@ export class AdminHomeComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!this.mediaChartContainer) return;
 
     const element = this.mediaChartContainer.nativeElement;
-    d3.select(element).select('svg').remove(); 
+    d3.select(element).select('svg').remove();
 
-    const margin = { top: 20, right: 40, bottom: 40, left: 60 };
+    const margin = {top: 20, right: 40, bottom: 40, left: 60};
     const width = element.offsetWidth - margin.left - margin.right;
     const height = 350 - margin.top - margin.bottom;
 
-    const svg = d3.select(element).append('svg')
+    const svg = d3
+      .select(element)
+      .append('svg')
       .attr('width', width + margin.left + margin.right)
       .attr('height', height + margin.top + margin.bottom)
       .append('g')
       .attr('transform', `translate(${margin.left},${margin.top})`);
 
     const keys = ['images', 'videos', 'audios'];
-    const stackedData = d3.stack<any>()
-      .keys(keys)
-      (data.map(d => ({
+    const stackedData = d3.stack<any>().keys(keys)(
+      data.map(d => ({
         date: d.date,
         images: d.images || 0,
         videos: d.videos || 0,
-        audios: d.audios || 0
-      })));
+        audios: d.audios || 0,
+      })),
+    );
 
-    const x = d3.scaleBand()
+    const x = d3
+      .scaleBand()
       .domain(data.map(d => d.date))
       .range([0, width])
       .padding(0.2);
 
-    const y = d3.scaleLinear()
+    const y = d3
+      .scaleLinear()
       .domain([0, d3.max(stackedData, layer => d3.max(layer, d => d[1])) || 0])
       .nice()
       .range([height, 0]);
 
-    const colors = d3.scaleOrdinal<string>()
+    const colors = d3
+      .scaleOrdinal<string>()
       .domain(keys)
       .range(['#3b82f6', '#ef4444', '#a855f7']); // Images = Blue, Videos = Red, Audio = Purple
 
-    const tooltip = d3.select('body').append('div')
-      .attr('class', 'chart-tooltip absolute bg-zinc-800 text-white border border-zinc-700 rounded px-2 py-1 opacity-0 pointer-events-none text-sm')
+    const tooltip = d3
+      .select('body')
+      .append('div')
+      .attr(
+        'class',
+        'chart-tooltip absolute bg-zinc-800 text-white border border-zinc-700 rounded px-2 py-1 opacity-0 pointer-events-none text-sm',
+      )
       .style('z-index', '1000');
 
-    const area = d3.area<any>()
+    const area = d3
+      .area<any>()
       .x(d => x(d.data.date)! + x.bandwidth() / 2)
       .y0(d => y(d[0]))
       .y1(d => y(d[1]));
 
-    svg.selectAll('.layer')
+    svg
+      .selectAll('.layer')
       .data(stackedData)
       .join('path')
-        .attr('class', 'layer')
-        .attr('d', area)
-        .style('fill', d => colors(d.key))
-        .style('opacity', 0.8)
-        .on('mouseover', (event, d) => {
-          tooltip.style('opacity', 1);
-          d3.select(event.currentTarget).style('opacity', 0.6);
-        })
-        .on('mousemove', (event, layer) => {
-          const mouseX = d3.pointer(event, svg.node())[0];
-          const index = Math.floor(mouseX / x.step());
-          const d = layer[index];
-          if (d) {
-            const value = d[1] - d[0];
-            tooltip
-              .html(`Date: ${d.data.date}<br>${layer.key}: ${value}`)
-              .style('left', (event.pageX + 10) + 'px')
-              .style('top', (event.pageY - 28) + 'px');
-          }
-        })
-        .on('mouseleave', (event, d) => {
-          tooltip.style('opacity', 0);
-          d3.select(event.currentTarget).style('opacity', 0.8);
-        });
+      .attr('class', 'layer')
+      .attr('d', area)
+      .style('fill', d => colors(d.key))
+      .style('opacity', 0.8)
+      .on('mouseover', (event, d) => {
+        tooltip.style('opacity', 1);
+        d3.select(event.currentTarget).style('opacity', 0.6);
+      })
+      .on('mousemove', (event, layer) => {
+        const mouseX = d3.pointer(event, svg.node())[0];
+        const index = Math.floor(mouseX / x.step());
+        const d = layer[index];
+        if (d) {
+          const value = d[1] - d[0];
+          tooltip
+            .html(`Date: ${d.data.date}<br>${layer.key}: ${value}`)
+            .style('left', event.pageX + 10 + 'px')
+            .style('top', event.pageY - 28 + 'px');
+        }
+      })
+      .on('mouseleave', (event, d) => {
+        tooltip.style('opacity', 0);
+        d3.select(event.currentTarget).style('opacity', 0.8);
+      });
 
-    svg.append('g')
+    svg
+      .append('g')
       .attr('transform', `translate(0,${height})`)
       .call(d3.axisBottom(x))
       .selectAll('text')
-        .style('fill', '#9ca3af');
+      .style('fill', '#9ca3af');
 
-    svg.append('g')
+    svg
+      .append('g')
       .call(d3.axisLeft(y))
       .selectAll('text')
-        .style('fill', '#9ca3af');
+      .style('fill', '#9ca3af');
 
     // Legend
-    const legend = svg.append('g')
+    const legend = svg
+      .append('g')
       .attr('transform', `translate(${width - 100}, 10)`);
 
     keys.forEach((key, i) => {
-      legend.append('rect')
+      legend
+        .append('rect')
         .attr('x', 0)
         .attr('y', i * 20)
         .attr('width', 12)
         .attr('height', 12)
         .style('fill', colors(key));
 
-      legend.append('text')
+      legend
+        .append('text')
         .attr('x', 18)
         .attr('y', i * 20 + 6)
         .attr('dy', '.35em')
@@ -288,81 +338,98 @@ export class AdminHomeComponent implements OnInit, AfterViewInit, OnDestroy {
     const element = this.workspaceChartContainer.nativeElement;
     d3.select(element).select('svg').remove();
 
-    const margin = { top: 30, right: 30, bottom: 80, left: 60 };
+    const margin = {top: 30, right: 30, bottom: 80, left: 60};
     const width = element.offsetWidth - margin.left - margin.right;
     const height = 350 - margin.top - margin.bottom;
 
-    const svg = d3.select(element).append('svg')
+    const svg = d3
+      .select(element)
+      .append('svg')
       .attr('width', width + margin.left + margin.right)
       .attr('height', height + margin.top + margin.bottom)
       .append('g')
       .attr('transform', `translate(${margin.left},${margin.top})`);
 
     const keys = ['images', 'videos', 'audios'];
-    const colors = d3.scaleOrdinal<string>()
+    const colors = d3
+      .scaleOrdinal<string>()
       .domain(keys)
       .range(['#3b82f6', '#f87171', '#8b5cf6']);
 
-    const stackedData = d3.stack<any>()
-      .keys(keys)(data);
+    const stackedData = d3.stack<any>().keys(keys)(data);
 
-    const x = d3.scaleBand()
+    const x = d3
+      .scaleBand()
       .domain(data.map(d => d.workspaceName || `ID ${d.workspaceId}`))
       .range([0, width])
       .padding(0.3);
 
-    const y = d3.scaleLinear()
+    const y = d3
+      .scaleLinear()
       .domain([0, d3.max(data, d => d.totalMedia) || 0])
       .nice()
       .range([height, 0]);
 
-    const tooltip = d3.select('body').append('div')
-      .attr('class', 'chart-tooltip absolute bg-zinc-800 text-white border border-zinc-700 rounded px-2 py-1 opacity-0 pointer-events-none text-sm')
+    const tooltip = d3
+      .select('body')
+      .append('div')
+      .attr(
+        'class',
+        'chart-tooltip absolute bg-zinc-800 text-white border border-zinc-700 rounded px-2 py-1 opacity-0 pointer-events-none text-sm',
+      )
       .style('z-index', '1000');
 
-    svg.append('g')
+    svg
+      .append('g')
       .selectAll('g')
       .data(stackedData)
       .join('g')
-        .attr('fill', d => colors(d.key)!)
-        .selectAll('rect')
-        .data(d => d)
-        .join('rect')
-          .attr('x', d => x(d.data.workspaceName || `ID ${d.data.workspaceId}`)!)
-          .attr('y', d => y(d[1]))
-          .attr('height', d => y(d[0]) - y(d[1]))
-          .attr('width', x.bandwidth())
-          .style('opacity', 0.8)
-          .on('mouseover', (event, d: any) => {
-            tooltip.style('opacity', 1);
-            d3.select(event.currentTarget).style('opacity', 1);
-          })
-          .on('mousemove', (event, d: any) => {
-            const layer = (d3.select((event.currentTarget as any).parentNode).datum() as any);
-            const value = d[1] - d[0];
-            tooltip
-              .html(`Workspace: ${d.data.workspaceName || `ID ${d.data.workspaceId}`}<br>${layer.key.charAt(0).toUpperCase() + layer.key.slice(1)}: ${value}`)
-              .style('left', (event.pageX + 10) + 'px')
-              .style('top', (event.pageY - 28) + 'px');
-          })
-          .on('mouseleave', (event, d) => {
-            tooltip.style('opacity', 0);
-            d3.select(event.currentTarget).style('opacity', 0.8);
-          });
+      .attr('fill', d => colors(d.key)!)
+      .selectAll('rect')
+      .data(d => d)
+      .join('rect')
+      .attr('x', d => x(d.data.workspaceName || `ID ${d.data.workspaceId}`)!)
+      .attr('y', d => y(d[1]))
+      .attr('height', d => y(d[0]) - y(d[1]))
+      .attr('width', x.bandwidth())
+      .style('opacity', 0.8)
+      .on('mouseover', (event, d: any) => {
+        tooltip.style('opacity', 1);
+        d3.select(event.currentTarget).style('opacity', 1);
+      })
+      .on('mousemove', (event, d: any) => {
+        const layer = d3
+          .select((event.currentTarget as any).parentNode)
+          .datum() as any;
+        const value = d[1] - d[0];
+        tooltip
+          .html(
+            `Workspace: ${d.data.workspaceName || `ID ${d.data.workspaceId}`}<br>${layer.key.charAt(0).toUpperCase() + layer.key.slice(1)}: ${value}`,
+          )
+          .style('left', event.pageX + 10 + 'px')
+          .style('top', event.pageY - 28 + 'px');
+      })
+      .on('mouseleave', (event, d) => {
+        tooltip.style('opacity', 0);
+        d3.select(event.currentTarget).style('opacity', 0.8);
+      });
 
     // Legend
-    const legend = svg.append('g')
+    const legend = svg
+      .append('g')
       .attr('transform', `translate(${width - 100}, 10)`);
 
     keys.forEach((key, i) => {
-      legend.append('rect')
+      legend
+        .append('rect')
         .attr('x', 0)
         .attr('y', i * 20)
         .attr('width', 12)
         .attr('height', 12)
         .style('fill', colors(key));
 
-      legend.append('text')
+      legend
+        .append('text')
         .attr('x', 18)
         .attr('y', i * 20 + 6)
         .attr('dy', '.35em')
@@ -372,18 +439,20 @@ export class AdminHomeComponent implements OnInit, AfterViewInit, OnDestroy {
         .text(key.charAt(0).toUpperCase() + key.slice(1));
     });
 
-    svg.append('g')
+    svg
+      .append('g')
       .attr('transform', `translate(0,${height})`)
       .call(d3.axisBottom(x))
       .selectAll('text')
-        .attr('transform', 'rotate(-45)')
-        .style('text-anchor', 'end')
-        .style('fill', '#9ca3af');
+      .attr('transform', 'rotate(-45)')
+      .style('text-anchor', 'end')
+      .style('fill', '#9ca3af');
 
-    svg.append('g')
+    svg
+      .append('g')
       .call(d3.axisLeft(y))
       .selectAll('text')
-        .style('fill', '#9ca3af');
+      .style('fill', '#9ca3af');
   }
 
   private renderActiveRolesChart(data: AdminActiveRole[]): void {
@@ -397,67 +466,82 @@ export class AdminHomeComponent implements OnInit, AfterViewInit, OnDestroy {
     const margin = 40;
     const radius = Math.min(width, height) / 2 - margin;
 
-    const svg = d3.select(element).append('svg')
+    const svg = d3
+      .select(element)
+      .append('svg')
       .attr('width', width)
       .attr('height', height)
       .append('g')
       .attr('transform', `translate(${width / 2}, ${height / 2})`);
 
-    const colors = d3.scaleOrdinal<string>()
+    const colors = d3
+      .scaleOrdinal<string>()
       .domain(data.map(d => d.role))
       .range(['#3b82f6', '#f87171', '#8b5cf6', '#fbbf24', '#4ade80']);
 
-    const pie = d3.pie<AdminActiveRole>()
-      .value(d => d.count);
+    const pie = d3.pie<AdminActiveRole>().value(d => d.count);
 
-    const arcGenerator = d3.arc<any>()
+    const arcGenerator = d3
+      .arc<any>()
       .innerRadius(radius * 0.4)
       .outerRadius(radius * 0.8);
 
-    const tooltip = d3.select('body').append('div')
-      .attr('class', 'chart-tooltip absolute bg-zinc-800 text-white border border-zinc-700 rounded px-2 py-1 opacity-0 pointer-events-none text-sm')
+    const tooltip = d3
+      .select('body')
+      .append('div')
+      .attr(
+        'class',
+        'chart-tooltip absolute bg-zinc-800 text-white border border-zinc-700 rounded px-2 py-1 opacity-0 pointer-events-none text-sm',
+      )
       .style('z-index', '1000');
 
-    svg.selectAll('slices')
+    svg
+      .selectAll('slices')
       .data(pie(data))
       .join('path')
-        .attr('d', arcGenerator)
-        .attr('fill', d => colors(d.data.role))
-        .attr('stroke', '#1E1F22')
-        .style('stroke-width', '2px')
-        .style('opacity', 0.8)
-        .on('mouseover', (event, d) => {
-          tooltip.style('opacity', 1);
-          d3.select(event.currentTarget).style('opacity', 1);
-        })
-        .on('mousemove', (event, d) => {
-          tooltip
-            .html(`${d.data.role}: ${d.data.count}`)
-            .style('left', (event.pageX + 10) + 'px')
-            .style('top', (event.pageY - 28) + 'px');
-        })
-        .on('mouseleave', (event, d) => {
-          tooltip.style('opacity', 0);
-          d3.select(event.currentTarget).style('opacity', 0.8);
-        });
+      .attr('d', arcGenerator)
+      .attr('fill', d => colors(d.data.role))
+      .attr('stroke', '#1E1F22')
+      .style('stroke-width', '2px')
+      .style('opacity', 0.8)
+      .on('mouseover', (event, d) => {
+        tooltip.style('opacity', 1);
+        d3.select(event.currentTarget).style('opacity', 1);
+      })
+      .on('mousemove', (event, d) => {
+        tooltip
+          .html(`${d.data.role}: ${d.data.count}`)
+          .style('left', event.pageX + 10 + 'px')
+          .style('top', event.pageY - 28 + 'px');
+      })
+      .on('mouseleave', (event, d) => {
+        tooltip.style('opacity', 0);
+        d3.select(event.currentTarget).style('opacity', 0.8);
+      });
 
     // Legend
-    const legendContainer = d3.select(element).append('div')
+    const legendContainer = d3
+      .select(element)
+      .append('div')
       .attr('class', 'legend-container mt-4 flex flex-wrap justify-center');
 
-    const legendItems = legendContainer.selectAll('.legend-item')
+    const legendItems = legendContainer
+      .selectAll('.legend-item')
       .data(data)
-      .enter().append('div')
-        .attr('class', 'legend-item flex items-center mr-4 mb-2');
+      .enter()
+      .append('div')
+      .attr('class', 'legend-item flex items-center mr-4 mb-2');
 
-    legendItems.append('span')
+    legendItems
+      .append('span')
       .style('display', 'inline-block')
       .style('width', '12px')
       .style('height', '12px')
       .style('background-color', d => colors(d.role))
       .style('margin-right', '6px');
 
-    legendItems.append('span')
+    legendItems
+      .append('span')
       .text(d => `${d.role} (${d.count})`)
       .style('color', '#e5e7eb')
       .style('font-size', '12px');
@@ -474,67 +558,82 @@ export class AdminHomeComponent implements OnInit, AfterViewInit, OnDestroy {
     const margin = 40;
     const radius = Math.min(width, height) / 2 - margin;
 
-    const svg = d3.select(element).append('svg')
+    const svg = d3
+      .select(element)
+      .append('svg')
       .attr('width', width)
       .attr('height', height)
       .append('g')
       .attr('transform', `translate(${width / 2}, ${height / 2})`);
 
-    const colors = d3.scaleOrdinal<string>()
+    const colors = d3
+      .scaleOrdinal<string>()
       .domain(data.map(d => d.status))
       .range(['#4ade80', '#ef4444', '#fbbf24']); // completed, failed, pending
 
-    const pie = d3.pie<AdminGenerationHealth>()
-      .value(d => d.count);
+    const pie = d3.pie<AdminGenerationHealth>().value(d => d.count);
 
-    const arcGenerator = d3.arc<any>()
+    const arcGenerator = d3
+      .arc<any>()
       .innerRadius(radius * 0.4)
       .outerRadius(radius * 0.8);
 
-    const tooltip = d3.select('body').append('div')
-      .attr('class', 'chart-tooltip absolute bg-zinc-800 text-white border border-zinc-700 rounded px-2 py-1 opacity-0 pointer-events-none text-sm')
+    const tooltip = d3
+      .select('body')
+      .append('div')
+      .attr(
+        'class',
+        'chart-tooltip absolute bg-zinc-800 text-white border border-zinc-700 rounded px-2 py-1 opacity-0 pointer-events-none text-sm',
+      )
       .style('z-index', '1000');
 
-    svg.selectAll('slices')
+    svg
+      .selectAll('slices')
       .data(pie(data))
       .join('path')
-        .attr('d', arcGenerator)
-        .attr('fill', d => colors(d.data.status))
-        .attr('stroke', '#1E1F22')
-        .style('stroke-width', '2px')
-        .style('opacity', 0.8)
-        .on('mouseover', (event, d) => {
-          tooltip.style('opacity', 1);
-          d3.select(event.currentTarget).style('opacity', 1);
-        })
-        .on('mousemove', (event, d) => {
-          tooltip
-            .html(`${d.data.status}: ${d.data.count}`)
-            .style('left', (event.pageX + 10) + 'px')
-            .style('top', (event.pageY - 28) + 'px');
-        })
-        .on('mouseleave', (event, d) => {
-          tooltip.style('opacity', 0);
-          d3.select(event.currentTarget).style('opacity', 0.8);
-        });
+      .attr('d', arcGenerator)
+      .attr('fill', d => colors(d.data.status))
+      .attr('stroke', '#1E1F22')
+      .style('stroke-width', '2px')
+      .style('opacity', 0.8)
+      .on('mouseover', (event, d) => {
+        tooltip.style('opacity', 1);
+        d3.select(event.currentTarget).style('opacity', 1);
+      })
+      .on('mousemove', (event, d) => {
+        tooltip
+          .html(`${d.data.status}: ${d.data.count}`)
+          .style('left', event.pageX + 10 + 'px')
+          .style('top', event.pageY - 28 + 'px');
+      })
+      .on('mouseleave', (event, d) => {
+        tooltip.style('opacity', 0);
+        d3.select(event.currentTarget).style('opacity', 0.8);
+      });
 
     // Legend
-    const legendContainer = d3.select(element).append('div')
+    const legendContainer = d3
+      .select(element)
+      .append('div')
       .attr('class', 'legend-container mt-4 flex flex-wrap justify-center');
 
-    const legendItems = legendContainer.selectAll('.legend-item')
+    const legendItems = legendContainer
+      .selectAll('.legend-item')
       .data(data)
-      .enter().append('div')
-        .attr('class', 'legend-item flex items-center mr-4 mb-2');
+      .enter()
+      .append('div')
+      .attr('class', 'legend-item flex items-center mr-4 mb-2');
 
-    legendItems.append('span')
+    legendItems
+      .append('span')
       .style('display', 'inline-block')
       .style('width', '12px')
       .style('height', '12px')
       .style('background-color', d => colors(d.status))
       .style('margin-right', '6px');
 
-    legendItems.append('span')
+    legendItems
+      .append('span')
       .text(d => `${d.status} (${d.count})`)
       .style('color', '#e5e7eb')
       .style('font-size', '12px');
@@ -546,95 +645,122 @@ export class AdminHomeComponent implements OnInit, AfterViewInit, OnDestroy {
     const element = this.monthlyUsersChartContainer.nativeElement;
     d3.select(element).select('svg').remove();
 
-    const margin = { top: 30, right: 30, bottom: 50, left: 60 };
+    const margin = {top: 30, right: 30, bottom: 50, left: 60};
     const width = element.offsetWidth - margin.left - margin.right;
     const height = 350 - margin.top - margin.bottom;
 
-    const svg = d3.select(element).append('svg')
+    const svg = d3
+      .select(element)
+      .append('svg')
       .attr('width', width + margin.left + margin.right)
       .attr('height', height + margin.top + margin.bottom)
       .append('g')
       .attr('transform', `translate(${margin.left},${margin.top})`);
 
-    const x = d3.scaleBand()
+    const x = d3
+      .scaleBand()
       .domain(data.map(d => d.month))
       .range([0, width])
       .padding(0.1);
 
-    const y = d3.scaleLinear()
+    const y = d3
+      .scaleLinear()
       .domain([0, d3.max(data, d => d.count) || 0])
       .nice()
       .range([height, 0]);
 
-    const tooltip = d3.select('body').append('div')
-      .attr('class', 'chart-tooltip absolute bg-zinc-800 text-white border border-zinc-700 rounded px-2 py-1 opacity-0 pointer-events-none text-sm')
+    const tooltip = d3
+      .select('body')
+      .append('div')
+      .attr(
+        'class',
+        'chart-tooltip absolute bg-zinc-800 text-white border border-zinc-700 rounded px-2 py-1 opacity-0 pointer-events-none text-sm',
+      )
       .style('z-index', '1000');
 
-    const line = d3.line<AdminMonthlyActiveUsers>()
+    const line = d3
+      .line<AdminMonthlyActiveUsers>()
       .x(d => x(d.month)! + x.bandwidth() / 2)
       .y(d => y(d.count))
       .curve(d3.curveMonotoneX);
 
-    const area = d3.area<AdminMonthlyActiveUsers>()
+    const area = d3
+      .area<AdminMonthlyActiveUsers>()
       .x(d => x(d.month)! + x.bandwidth() / 2)
       .y0(height)
       .y1(d => y(d.count))
       .curve(d3.curveMonotoneX);
 
-    const gradient = svg.append('defs')
+    const gradient = svg
+      .append('defs')
       .append('linearGradient')
       .attr('id', 'active-users-grad')
-      .attr('x1', '0%').attr('y1', '0%')
-      .attr('x2', '0%').attr('y2', '100%');
+      .attr('x1', '0%')
+      .attr('y1', '0%')
+      .attr('x2', '0%')
+      .attr('y2', '100%');
 
-    gradient.append('stop').attr('offset', '0%').attr('stop-color', '#6366f1').attr('stop-opacity', 0.4);
-    gradient.append('stop').attr('offset', '100%').attr('stop-color', '#6366f1').attr('stop-opacity', 0);
+    gradient
+      .append('stop')
+      .attr('offset', '0%')
+      .attr('stop-color', '#6366f1')
+      .attr('stop-opacity', 0.4);
+    gradient
+      .append('stop')
+      .attr('offset', '100%')
+      .attr('stop-color', '#6366f1')
+      .attr('stop-opacity', 0);
 
-    svg.append('path')
+    svg
+      .append('path')
       .datum(data)
       .attr('fill', 'url(#active-users-grad)')
       .attr('d', area);
 
-    svg.append('path')
+    svg
+      .append('path')
       .datum(data)
       .attr('fill', 'none')
       .attr('stroke', '#6366f1')
       .attr('stroke-width', 3)
       .attr('d', line);
 
-    svg.selectAll('circle')
+    svg
+      .selectAll('circle')
       .data(data)
       .join('circle')
-        .attr('cx', d => x(d.month)! + x.bandwidth() / 2)
-        .attr('cy', d => y(d.count))
-        .attr('r', 5)
-        .attr('fill', '#6366f1')
-        .style('opacity', 0.8)
-        .on('mouseover', (event, d) => {
-          tooltip.style('opacity', 1);
-          d3.select(event.currentTarget).attr('r', 7);
-        })
-        .on('mousemove', (event, d) => {
-          tooltip
-            .html(`Month: ${d.month}<br>Active Users: ${d.count}`)
-            .style('left', (event.pageX + 10) + 'px')
-            .style('top', (event.pageY - 28) + 'px');
-        })
-        .on('mouseleave', (event, d) => {
-          tooltip.style('opacity', 0);
-          d3.select(event.currentTarget).attr('r', 5);
-        });
+      .attr('cx', d => x(d.month)! + x.bandwidth() / 2)
+      .attr('cy', d => y(d.count))
+      .attr('r', 5)
+      .attr('fill', '#6366f1')
+      .style('opacity', 0.8)
+      .on('mouseover', (event, d) => {
+        tooltip.style('opacity', 1);
+        d3.select(event.currentTarget).attr('r', 7);
+      })
+      .on('mousemove', (event, d) => {
+        tooltip
+          .html(`Month: ${d.month}<br>Active Users: ${d.count}`)
+          .style('left', event.pageX + 10 + 'px')
+          .style('top', event.pageY - 28 + 'px');
+      })
+      .on('mouseleave', (event, d) => {
+        tooltip.style('opacity', 0);
+        d3.select(event.currentTarget).attr('r', 5);
+      });
 
-    svg.append('g')
+    svg
+      .append('g')
       .attr('transform', `translate(0,${height})`)
       .call(d3.axisBottom(x))
       .selectAll('text')
-        .style('fill', '#9ca3af');
+      .style('fill', '#9ca3af');
 
-    svg.append('g')
+    svg
+      .append('g')
       .call(d3.axisLeft(y).ticks(5))
       .selectAll('text')
-        .style('fill', '#9ca3af');
+      .style('fill', '#9ca3af');
   }
 
   ngOnDestroy(): void {

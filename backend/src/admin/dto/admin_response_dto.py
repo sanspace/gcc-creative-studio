@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from pydantic import BaseModel
+from src.common.base_dto import BaseDto
 
 
-class AdminOverviewStats(BaseModel):
+class AdminOverviewStats(BaseDto):
     total_users: int
     total_workspaces: int
     images_generated: int
@@ -24,7 +24,7 @@ class AdminOverviewStats(BaseModel):
     total_media: int
 
 
-class AdminMediaOverTime(BaseModel):
+class AdminMediaOverTime(BaseDto):
     date: str
     total_generated: int
     images: int
@@ -32,7 +32,7 @@ class AdminMediaOverTime(BaseModel):
     audios: int
 
 
-class AdminWorkspaceStats(BaseModel):
+class AdminWorkspaceStats(BaseDto):
     workspace_id: int
     workspace_name: str | None = None
     total_media: int
@@ -41,17 +41,16 @@ class AdminWorkspaceStats(BaseModel):
     audios: int
 
 
-class AdminActiveRole(BaseModel):
+class AdminActiveRole(BaseDto):
     role: str
     count: int
 
 
-class AdminGenerationHealth(BaseModel):
+class AdminGenerationHealth(BaseDto):
     status: str
     count: int
 
 
-class AdminMonthlyActiveUsers(BaseModel):
+class AdminMonthlyActiveUsers(BaseDto):
     month: str
     count: int
-
