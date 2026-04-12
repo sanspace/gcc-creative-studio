@@ -16,6 +16,12 @@
 name = "creative-studio"
 version = "0.1.0"
 description = "GenMedia Creative Studio"
+authors = [
+    {name = "Mauro Cominotti", email = "maurocominotti@google.com"},
+    {name = "Nacho Villaluenga", email = "nachov@google.com"},
+    {name = "Tomasz Świtoń", email = "switon@google.com"},
+    {name = "San Srinivasan", email = "sansrinivasan@google.com"},
+]
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

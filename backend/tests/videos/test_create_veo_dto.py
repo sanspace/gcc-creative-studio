@@ -83,7 +83,7 @@ def test_validate_source_media_items_conflicting_inputs():
             prompt="Test",
             workspace_id=1,
             generation_model=GenerationModelEnum.VEO_3_1_PREVIEW,
-            start_image_asset_id=1,
+            start_image_asset_id={"id": 1, "type": "source_asset"},
             reference_images=[
                 ReferenceImageDto(
                     asset_id=2,
