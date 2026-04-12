@@ -82,65 +82,101 @@
       </div>
     </div>
 
-    <ng-container *ngIf="!isSelectionMode && !isSelectorMode">
-      <div
-        class="flex flex-wrap justify-end items-center gap-4 p-4 rounded-lg mt-4 w-full"
-      >
-
-        <!-- Media Type Filter -->
-        <div class="flex flex-col w-48" *ngIf="!filterByType">
-          <studio-dropdown
-            class="w-full"
-            size="small"
-            [options]="mediaTypeOptions"
-            [(value)]="mediaTypeFilter"
-            (valueChange)="searchTerm()"
-            placeholder="Media Type"
-            menuTitle="Media Type"
-          ></studio-dropdown>
-        </div>
-
-        <!-- Generation Model Filter -->
-        <div class="flex flex-col w-48">
-          <studio-dropdown
-             class="w-full"
-             size="small"
-            [options]="modelOptions"
-            [(value)]="generationModelFilter"
-            (valueChange)="searchTerm()"
-            placeholder="Generation Model"
-            menuTitle="Generation Model"
-          ></studio-dropdown>
-        </div>
-
-        <!-- Search Filter -->
-        <div class="flex flex-col self-center">
-          <studio-search-filter
-            [(value)]="queryFilter"
-            placeholder="Search prompt, model or email..."
-            size="small"
-            (search)="searchTerm()"
-          ></studio-search-filter>
-        </div>
+    <ng-container *ngIf="(!isSelectionMode || isSelectorMode) && (!isSelectorMode || showFiltersInSelector)">
+      <div class="flex flex-col gap-4 p-4 rounded-lg mt-4 w-full">
         
-        <!-- Date Range Filter -->
-        <div class="flex flex-col self-center">
-          <studio-date-range-filter
-            [(startDate)]="startDateFilter"
-            [(endDate)]="endDateFilter"
-            (dateChange)="searchTerm()"
-          ></studio-date-range-filter>
+        <!-- Main Row: Core Filters and Actions -->
+        <div class="flex flex-wrap justify-between items-center gap-4">
+          <div class="flex flex-wrap items-center gap-4 flex-1">
+            
+            <!-- Search Filter -->
+            <div class="w-full md:w-96">
+              <studio-search-filter
+                [(value)]="queryFilter"
+                placeholder="Search prompt, model or email..."
+                size="small"
+                [expandable]="false"
+                (search)="searchTerm()"
+              ></studio-search-filter>
+            </div>
+            
+            <!-- Date Range Filter -->
+            <div>
+              <studio-date-range-filter
+                [(startDate)]="startDateFilter"
+                [(endDate)]="endDateFilter"
+                (dateChange)="searchTerm()"
+              ></studio-date-range-filter>
+            </div>
+
+            <!-- Filters Toggle Button -->
+            <studio-button
+              variant="primary"
+              size="small"
+              (click)="toggleAdvancedFilters()"
+              title="Toggle filters"
+            >
+              <mat-icon class="mr-1">{{ showAdvancedFilters ? 'expand_less' : 'filter_list' }}</mat-icon>
+              <span>Filters</span>
+            </studio-button>
+          </div>
+
+          <!-- Select All Button -->
+          <div class="flex items-center" *ngIf="images.length > 0">
+            <studio-button
+              variant="primary"
+              size="small"
+              (click)="toggleSelectAll()"
+            >
+              {{ isAllSelected ? 'Deselect All' : 'Select All' }}
+            </studio-button>
+          </div>
         </div>
 
-        <!-- Select All Button -->
-        <div class="flex items-center self-center" *ngIf="images.length > 0">
-          <studio-button
-            variant="primary"
-            size="small"
-            (click)="toggleSelectAll()"
-          >
-            {{ isAllSelected ? 'Deselect All' : 'Select All' }}
-          </studio-button>
+        <!-- Secondary Row: Advanced Filters (Collapsible) -->
+        <div 
+          *ngIf="showAdvancedFilters" [@fadeSlideInOut]
+          class="flex flex-col gap-1 p-4 bg-neutral-800/50 rounded-lg animate-fade-in"
+        >
+          <!-- Dropdowns Row -->
+          <div class="flex flex-wrap justify-start items-center gap-4">
+            <!-- Media Type Filter -->
+            <div class="flex flex-col w-48" *ngIf="!filterByType">
+              <studio-dropdown class="w-full" size="small" [options]="mediaTypeOptions" [(value)]="mediaTypeFilter"
+                (valueChange)="onMediaTypeChange($event)" placeholder="Media Type" menuTitle="Media Type"></studio-dropdown>
+              </div>
+
+            <!-- Generation Model Filter -->
+            <div class="flex flex-col w-48">
+              <studio-dropdown class="w-full" size="small" [options]="modelOptions" [(value)]="generationModelFilter"
+                (valueChange)="searchTerm()" placeholder="Generation Model" menuTitle="Generation Model"></studio-dropdown>
+              </div>
+
+            <!-- Asset Type Filter -->
+            <div class="flex flex-col w-48">
+              <studio-dropdown class="w-full" size="small" [options]="assetTypeOptions" [(value)]="assetTypeFilter"
+                (valueChange)="searchTerm()" placeholder="Asset Type" menuTitle="Asset Type"></studio-dropdown>
+              </div>
+
+            <!-- Tags Filter -->
+            <div class="flex items-center gap-2 w-56">
+              <studio-dropdown class="flex-1" size="small" [options]="displayedTagOptions" [(value)]="tagsFilter" [multiple]="true"
+                [searchable]="true" [deletable]="true" [hasMore]="hasMoreTags()" [showCheckbox]="true" [checkboxChecked]="onlyMyTags"
+                [checkboxLabel]="'My tags'" (checkboxChange)="toggleOnlyMyTags($event)" (valueChange)="onTagChange($event)"
+                (searchChange)="onTagSearch($event)" (optionDeleted)="onTagDelete($event)" (loadMore)="loadMoreTags()"
+                placeholder="Tags" menuTitle="Tags"></studio-dropdown>
+              <button mat-icon-button (click)="openTagsManagement()" title="Manage Tags" *ngIf="isAdmin" class="settings-btn">
+                <mat-icon>settings</mat-icon>
+              </button>
+            </div>
+            </div>
+            
+            <!-- Checkbox Row -->
+            <div class="flex items-center text-white text-sm">
+              <mat-checkbox [checked]="onlyMyMedia" (change)="toggleOnlyMyMedia($event.checked)">
+                Select only my media
+              </mat-checkbox>
+          </div>
         </div>
 
       </div>
@@ -166,6 +202,16 @@
             mode="indeterminate"
             diameter="18"
           ></mat-progress-spinner>
+        </studio-button>
+        <studio-button
+          variant="primary"
+          size="small"
+          shape="circle"
+          (click)="openBulkAssignTagsDialog()"
+          title="Tag selected"
+          [disabled]="selectedItems.size === 0 || isCopying || isDownloading || isDeleting"
+        >
+          <mat-icon>label</mat-icon>
         </studio-button>
         <studio-button
           variant="primary"
@@ -226,9 +272,10 @@
               [isSelectionMode]="isSelectionMode"
               [isSelected]="isItemSelected(media)"
               [anyItemSelected]="selectedItems.size > 0"
+              [filteredTags]="tagsFilter"
               (mediaItemSelected)="mediaItemSelected.emit($event)"
-              (mediaSelected)="mediaSelected.emit($event)"
-              (selectionToggled)="toggleSelection($event.item, $event.event)"
+              (mediaSelected)="mediaSelected.emit({mediaItem: $any($event), selectedIndex: 0})"
+              (selectionToggled)="toggleSelection($event.item, $event.event, $event.selectedIndex)"
             ></app-gallery-card>
           </div>
         </div>

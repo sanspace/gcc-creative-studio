@@ -31,6 +31,7 @@ from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from src.admin.admin_controller import router as admin_router
 from src.audios.audio_controller import router as audio_router
 from src.brand_guidelines.brand_guideline_controller import (
     router as brand_guideline_router,
@@ -47,6 +48,7 @@ from src.multimodal.gemini_controller import router as gemini_router
 from src.source_assets.source_asset_controller import (
     router as source_asset_router,
 )
+from src.tags.tags_controller import router as tags_router
 from src.users.user_controller import router as user_router
 from src.videos.veo_controller import router as video_router
 from src.workbench.router import router as workbench_router
@@ -165,6 +167,7 @@ def version():
 configure_cors(app)
 
 app.include_router(imagen_router)
+app.include_router(admin_router)
 app.include_router(audio_router)
 app.include_router(video_router)
 app.include_router(gallery_router)
@@ -173,6 +176,7 @@ app.include_router(user_router)
 app.include_router(generation_options_router)
 app.include_router(media_template_router)
 app.include_router(source_asset_router)
+app.include_router(tags_router)
 app.include_router(workspace_router)
 app.include_router(brand_guideline_router)
 app.include_router(workflow_router)

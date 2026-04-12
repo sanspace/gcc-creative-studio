@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import datetime
+from src.workspaces.schema.workspace_model import Workspace
+from src.users.user_model import User
 
 
 from fastapi import Depends
@@ -67,7 +69,7 @@ class UnifiedGalleryRepository(
             query = query.where(self.model.status == search_dto.status.value)
 
         # Filter by user_id
-        if search_dto.user_email:
+        if user_id is not None:
             query = query.where(self.model.user_id == user_id)
 
         # Filter by metadata using JSONB operators
@@ -111,13 +113,29 @@ class UnifiedGalleryRepository(
                 < search_dto.end_date + datetime.timedelta(days=1)
             )
 
+        # 4.5 Tags Filter
+        if hasattr(search_dto, "tags") and search_dto.tags:
+            for tag_name in search_dto.tags:
+                query = query.where(
+                    self.model.metadata_["tags"].contains([{"name": tag_name}])
+                )
+
         # 5. Full-Text Word Search
         if hasattr(search_dto, "query") and search_dto.query:
             search_pattern = f"%{search_dto.query}%"
             query = query.where(
-                self.model.metadata_["prompt"].astext.ilike(search_pattern)
-                | self.model.metadata_["file_name"].astext.ilike(search_pattern)
-                | self.model.metadata_["model"].astext.ilike(search_pattern)
+                func.coalesce(self.model.metadata_["prompt"].astext, "").ilike(
+                    search_pattern
+                )
+                | func.coalesce(
+                    self.model.metadata_["file_name"].astext, ""
+                ).ilike(search_pattern)
+                | func.coalesce(self.model.metadata_["model"].astext, "").ilike(
+                    search_pattern
+                )
+                | func.coalesce(
+                    self.model.metadata_["original_filename"].astext, ""
+                ).ilike(search_pattern)
             )
 
         # 2. Get total count
@@ -136,9 +154,12 @@ class UnifiedGalleryRepository(
 
         # 4. Execute
         result = await self.db.execute(query)
-        items = result.scalars().all()
+        rows = result.scalars().all()
 
-        data = [self.schema.model_validate(item) for item in items]
+        data = []
+        for item in rows:
+            item_data = self.schema.model_validate(item)
+            data.append(item_data)
 
         # 5. Determine next cursor (offset)
         page = (search_dto.offset // search_dto.limit) + 1

@@ -31,9 +31,10 @@ import {MatSnackBar} from '@angular/material/snack-bar';
 import {DomSanitizer, SafeResourceUrl} from '@angular/platform-browser';
 import {Router} from '@angular/router';
 import {isPlatformBrowser} from '@angular/common';
-import {finalize, first, Observable} from 'rxjs';
+import {finalize, first, map, Observable} from 'rxjs';
 import {AssetTypeEnum} from '../admin/source-assets-management/source-asset.model';
 import {ImageCropperDialogComponent} from '../common/components/image-cropper-dialog/image-cropper-dialog.component';
+import {ConfirmationDialogComponent} from '../common/components/confirmation-dialog/confirmation-dialog.component';
 import {
   ImageSelectorComponent,
   MediaItemSelection,
@@ -127,7 +128,7 @@ export class VideoComponent implements OnInit, AfterViewInit {
   // This object holds the current state of all user selections.
   searchRequest: VeoRequest = {
     prompt: '',
-    generationModel: 'veo-3.1-generate-preview',
+    generationModel: 'veo-3.1-generate-001',
     aspectRatio: '16:9',
     numberOfMedia: 4,
     style: null,
@@ -221,7 +222,13 @@ export class VideoComponent implements OnInit, AfterViewInit {
     @Inject(PLATFORM_ID) private platformId: Object,
   ) {
     this.isBrowser = isPlatformBrowser(this.platformId);
-    this.activeVideoJob$ = this.service.activeVideoJob$;
+    this.activeVideoJob$ = this.service.activeVideoJob$.pipe(
+      map(job =>
+        job
+          ? (this.galleryService.mapUnifiedItem(job) as unknown as MediaItem)
+          : null,
+      ),
+    );
 
     this.matIconRegistry
       .addSvgIcon(
@@ -616,7 +623,10 @@ export class VideoComponent implements OnInit, AfterViewInit {
       !this.isConcatenateMode
     ) {
       const veo31Model = this.generationModels.find(
-        m => m.value === 'veo-3.1-generate-preview',
+        m =>
+          m.value === 'veo-3.1-generate-001' ||
+          m.value === 'veo-3.1-lite-generate-001' ||
+          m.value === 'veo-3.1-fast-generate-001',
       );
       if (veo31Model) {
         this.selectModel(veo31Model);
@@ -880,7 +890,10 @@ export class VideoComponent implements OnInit, AfterViewInit {
 
       if (isVeo30) {
         const veo31Model = this.generationModels.find(
-          m => m.value === 'veo-3.1-generate-preview',
+          m =>
+            m.value === 'veo-3.1-generate-001' ||
+            m.value === 'veo-3.1-lite-generate-001' ||
+            m.value === 'veo-3.1-fast-generate-001',
         );
         if (veo31Model) {
           this.selectModel(veo31Model);
@@ -1426,7 +1439,10 @@ export class VideoComponent implements OnInit, AfterViewInit {
       }
 
       const veo31Model = this.generationModels.find(
-        m => m.value === 'veo-3.1-generate-preview',
+        m =>
+          m.value === 'veo-3.1-generate-001' ||
+          m.value === 'veo-3.1-lite-generate-001' ||
+          m.value === 'veo-3.1-fast-generate-001',
       );
       if (
         veo31Model &&
@@ -1578,22 +1594,31 @@ export class VideoComponent implements OnInit, AfterViewInit {
       const workspaceId = this.workspaceStateService.getActiveWorkspaceId();
       if (workspaceId === null) return;
 
-      const confirmDelete = confirm(
-        'Are you sure you want to delete this generation result?',
-      );
-      if (!confirmDelete) return;
+      const dialogRef = this.dialog.open(ConfirmationDialogComponent, {
+        data: {
+          title: 'Delete Video',
+          message: 'Are you sure you want to delete this generation result?',
+        },
+      });
 
-      this.galleryService
-        .bulkDelete([{id: job.id, type: 'media_item'}], workspaceId)
-        .subscribe({
-          next: () => {
-            handleSuccessSnackbar(this._snackBar, 'Video deleted successfully');
-            this.service.clearActiveVideoJob();
-          },
-          error: err => {
-            handleErrorSnackbar(this._snackBar, err, 'Delete results');
-          },
-        });
+      dialogRef.afterClosed().subscribe(result => {
+        if (result) {
+          this.galleryService
+            .bulkDelete([{id: job.id, type: 'media_item'}], workspaceId)
+            .subscribe({
+              next: () => {
+                handleSuccessSnackbar(
+                  this._snackBar,
+                  'Video deleted successfully',
+                );
+                this.service.clearActiveVideoJob();
+              },
+              error: err => {
+                handleErrorSnackbar(this._snackBar, err, 'Delete results');
+              },
+            });
+        }
+      });
     });
   }
 }

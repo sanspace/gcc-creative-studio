@@ -48,7 +48,7 @@ IDENTITY_PLATFORM_ALLOWED_ORGS=""
 
 ### 2. Running the Application
 
-We use Docker Compose to run the application locally. Please refer to the [Root README](../README.md#4-running-with-docker-compose) for detailed instructions on how to start the services.
+We use Docker Compose to run the application locally. Please refer to the [Development Guide](../DEVELOPMENT.md) for detailed instructions on how to start the services.
 
 If you want to start just the backend you can run the following command:
 
@@ -93,7 +93,7 @@ To maintain code quality and consistency:
 
 ### 🛡️ Automatic Checks with Pre-commit
 
-To guarantee style standards compliance automatically on every commit, we use a fully containerized `pre-commit` setup. Please see the [Main README](../README.md#🛡️-automatic-checks-with-pre-commit-recommended) for installation instructions to link it to your `git commit` hooks.
+To guarantee style standards compliance automatically on every commit, we use a fully containerized `pre-commit` setup. Please see the [Development Guide](../DEVELOPMENT.md#5-code-quality--pre-commit-hooks) for installation instructions to link it to your `git commit` hooks.
 
 ## 🧪 Running Tests
 

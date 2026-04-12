@@ -30,6 +30,7 @@ import {GalleryItem} from '../../models/gallery-item.model';
 import PhotoSwipeLightbox from 'photoswipe/lightbox';
 import {Clipboard} from '@angular/cdk/clipboard';
 import {MatSnackBar} from '@angular/material/snack-bar';
+import {MatDialog} from '@angular/material/dialog';
 import {ActivatedRoute, Router} from '@angular/router';
 import {EventEmitter} from '@angular/core';
 import {Location} from '@angular/common';
@@ -37,6 +38,9 @@ import {
   handleErrorSnackbar,
   handleSuccessSnackbar,
 } from '../../../utils/handleMessageSnackbar';
+import {AssignTagsDialogComponent} from '../assign-tags-dialog/assign-tags-dialog.component';
+import {TagsService} from '../../services/tags.service';
+import {WorkspaceStateService} from '../../../services/workspace/workspace-state.service';
 
 @Component({
   selector: 'app-media-lightbox',
@@ -83,6 +87,7 @@ export class MediaLightboxComponent
     selectedIndex: number;
   }>();
   @Output() deleteClicked = new EventEmitter<number>();
+  @Output() tagsChanged = new EventEmitter<any>();
 
   selectedIndex = 0;
   selectedUrl: string | undefined;
@@ -96,6 +101,7 @@ export class MediaLightboxComponent
   private lightbox: PhotoSwipeLightbox | undefined;
 
   @ViewChild('audioPlayer') audioPlayerRef!: ElementRef<HTMLAudioElement>;
+  @ViewChild('videoPlayer') videoPlayerRef!: ElementRef<HTMLVideoElement>;
   isPlaying = false;
   currentTime = '0:00';
   duration = '0:00';
@@ -107,6 +113,9 @@ export class MediaLightboxComponent
     private router: Router,
     private location: Location,
     private route: ActivatedRoute,
+    public dialog: MatDialog,
+    private tagsService: TagsService,
+    private workspaceStateService: WorkspaceStateService,
   ) {}
 
   ngAfterViewInit(): void {
@@ -508,6 +517,57 @@ export class MediaLightboxComponent
         selectedIndex: this.selectedIndex,
       });
     }
+  }
+
+  toggleVideoPlay() {
+    const video = this.videoPlayerRef?.nativeElement;
+    if (!video) return;
+
+    if (video.paused) {
+      void video.play();
+    } else {
+      video.pause();
+    }
+  }
+
+  openAssignTagsDialog(): void {
+    const dialogRef = this.dialog.open(AssignTagsDialogComponent, {
+      data: {
+        assetId: this.mediaItem?.id,
+        assetType: (this.mediaItem as any).itemType || 'media_item',
+        existingTags: ((this.mediaItem as any)?.tags || []).map((t: any) =>
+          typeof t === 'object' ? t.name : t,
+        ),
+      },
+      width: '400px',
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result) {
+        if (this.mediaItem) {
+          const workspaceId = this.workspaceStateService.getActiveWorkspaceId();
+          if (!workspaceId) return;
+
+          this.tagsService
+            .bulkAssign(
+              workspaceId,
+              [this.mediaItem.id],
+              (this.mediaItem as any).itemType || 'media_item',
+              result,
+            )
+            .subscribe({
+              next: () => {
+                this.snackBar.open('Tags assigned successfully', 'Close', {
+                  duration: 3000,
+                });
+                this.tagsChanged.emit(result);
+              },
+              error: err =>
+                handleErrorSnackbar(this.snackBar, err, 'Assign tags'),
+            });
+        }
+      }
+    });
   }
 
   onDeleteClick() {

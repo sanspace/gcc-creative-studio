@@ -54,6 +54,7 @@ from src.users.repository.user_repository import UserRepository
 from src.users.user_model import UserModel, UserRoleEnum
 from src.workspaces.repository.workspace_repository import WorkspaceRepository
 from src.workspaces.workspace_auth_guard import WorkspaceAuth
+from src.tags.repository.tags_repository import TagsRepository
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +73,7 @@ class GalleryService:
         workspace_auth: WorkspaceAuth = Depends(),
         imagen_service: ImagenService = Depends(),
         gcs_service: GcsService = Depends(),
+        tags_repo: TagsRepository = Depends(),
     ):
         """Initializes the service with its dependencies."""
         self.media_repo = media_repo
@@ -83,6 +85,7 @@ class GalleryService:
         self.workspace_auth = workspace_auth
         self.imagen_service = imagen_service
         self.gcs_service = gcs_service
+        self.tags_repo = tags_repo
 
     async def _enrich_source_asset_link(
         self,
@@ -253,6 +256,7 @@ class GalleryService:
             presigned_urls=presigned_urls,
             original_presigned_urls=original_presigned_urls,
             presigned_thumbnail_urls=presigned_thumbnail_urls,
+            enriched_source_assets=enriched_source_assets or None,
             enriched_source_media_items=enriched_source_media_items or None,
         )
 
@@ -374,7 +378,13 @@ class GalleryService:
             user=current_user,
         )
 
-        return await self._create_gallery_response(item)
+        response = await self._create_gallery_response(item)
+        response.tags = await self.tags_repo.get_tags_for_media_item(item_id)
+        if item.user_id:
+            user = await self.user_repo.get_by_id(item.user_id)
+            if user:
+                response.user_picture = user.picture
+        return response
 
     async def bulk_delete(
         self,

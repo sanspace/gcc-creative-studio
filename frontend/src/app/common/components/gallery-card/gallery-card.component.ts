@@ -27,7 +27,12 @@ import {Router} from '@angular/router';
 import {isPlatformBrowser} from '@angular/common';
 import {GalleryItem} from '../../models/gallery-item.model';
 import {MediaItemSelection} from '../image-selector/image-selector.component';
+import {UserService} from '../../services/user.service';
+import {MatDialog} from '@angular/material/dialog';
+import {UserRolesEnum} from '../../models/user.model';
+import {AssignTagsDialogComponent} from '../assign-tags-dialog/assign-tags-dialog.component';
 import {MediaItem} from '../../models/media-item.model';
+import {TagModel} from '../../services/tags.service';
 
 @Component({
   selector: 'app-gallery-card',
@@ -35,20 +40,29 @@ import {MediaItem} from '../../models/media-item.model';
   styleUrls: ['./gallery-card.component.scss'],
 })
 export class GalleryCardComponent implements OnDestroy {
+  isAdmin = false;
+
   constructor(
     private router: Router,
+    private userService: UserService,
+    public dialog: MatDialog,
     @Inject(PLATFORM_ID) private platformId: Object,
-  ) {}
+  ) {
+    const userDetails = this.userService.getUserDetails();
+    this.isAdmin = userDetails?.roles?.includes(UserRolesEnum.ADMIN) || false;
+  }
   @Input() item!: GalleryItem;
   @Input() isSelectionMode = false;
   @Input() isSelected = false;
   @Input() anyItemSelected = false;
+  @Input() filteredTags: string[] = [];
 
   @Output() mediaItemSelected = new EventEmitter<MediaItemSelection>();
   @Output() mediaSelected = new EventEmitter<GalleryItem>();
   @Output() selectionToggled = new EventEmitter<{
     item: GalleryItem;
     event: MouseEvent;
+    selectedIndex: number;
   }>();
 
   currentImageIndex = 0;
@@ -67,7 +81,10 @@ export class GalleryCardComponent implements OnDestroy {
   }
 
   get displayPaddingBottom(): string {
-    const rawRatio = this.item.aspectRatio;
+    const rawRatio =
+      this.item.aspectRatio ||
+      (this.item as any).aspect ||
+      this.item.metadata?.aspectRatio;
     const gap = 16; // gap-4 is 1rem = 16px
 
     // Default handles for no ratio
@@ -103,6 +120,29 @@ export class GalleryCardComponent implements OnDestroy {
     } else {
       return '100%'; // 1:1
     }
+  }
+
+  openAssignTagsDialog(event: Event): void {
+    event.stopPropagation();
+    event.preventDefault();
+
+    const dialogRef = this.dialog.open(AssignTagsDialogComponent, {
+      data: {
+        assetId: this.item.id,
+        assetType: this.item.itemType,
+        existingTags: this.item.metadata?.tags || [],
+      },
+      width: '400px',
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result) {
+        if (!this.item.metadata) {
+          this.item.metadata = {};
+        }
+        this.item.metadata.tags = result;
+      }
+    });
   }
 
   ngOnDestroy() {}
@@ -146,7 +186,11 @@ export class GalleryCardComponent implements OnDestroy {
   toggleSelection(event: MouseEvent): void {
     event.preventDefault();
     event.stopPropagation();
-    this.selectionToggled.emit({item: this.item, event});
+    this.selectionToggled.emit({
+      item: this.item,
+      event,
+      selectedIndex: this.currentImageIndex,
+    });
   }
 
   selectMedia(event: Event): void {
@@ -166,30 +210,79 @@ export class GalleryCardComponent implements OnDestroy {
     event.preventDefault();
   }
 
+  getRoute(): any[] {
+    return this.item.itemType === 'source_asset'
+      ? ['/asset-detail', this.item.id]
+      : ['/gallery', this.item.id];
+  }
+
   onCardClick(event: MouseEvent): void {
-    event.preventDefault();
-    event.stopPropagation();
+    if (this.isSelectionMode || this.anyItemSelected) {
+      event.preventDefault();
+      event.stopPropagation();
 
-    if (this.isSelectionMode) {
-      this.mediaItemSelected.emit({
-        mediaItem: this.item as unknown as MediaItem,
-        selectedIndex: this.currentImageIndex,
-      });
-      this.selectionToggled.emit({item: this.item, event});
-      return;
+      if (this.isSelectionMode) {
+        this.mediaItemSelected.emit({
+          mediaItem: this.item as unknown as MediaItem,
+          selectedIndex: this.currentImageIndex,
+        });
+        this.selectionToggled.emit({
+          item: this.item,
+          event,
+          selectedIndex: this.currentImageIndex,
+        });
+        return;
+      }
+
+      if (this.anyItemSelected) {
+        this.selectionToggled.emit({
+          item: this.item,
+          event,
+          selectedIndex: this.currentImageIndex,
+        });
+        return;
+      }
+    }
+  }
+
+  get displayedTags(): TagModel[] {
+    if (!this.item.tags) return [];
+
+    let tagsToDisplay = this.item.tags;
+
+    if (this.filteredTags && this.filteredTags.length > 0) {
+      tagsToDisplay = this.item.tags.filter(tag =>
+        this.filteredTags.includes(tag.name),
+      );
     }
 
-    if (this.anyItemSelected) {
-      this.selectionToggled.emit({item: this.item, event});
-      return;
+    let totalLength = 0;
+    const maxChars = 20; // Heuristic for card width
+    const result = [];
+
+    for (const tag of tagsToDisplay) {
+      if (totalLength + tag.name.length <= maxChars || result.length === 0) {
+        result.push(tag);
+        totalLength += tag.name.length + 3; // +3 for gap/padding estimate
+      } else {
+        break;
+      }
     }
 
-    const route =
-      this.item.itemType === 'source_asset'
-        ? ['/asset-detail', this.item.id]
-        : ['/gallery', this.item.id];
+    return result;
+  }
 
-    void this.router.navigate(route, {state: {mediaItem: this.item}});
+  get hiddenTagsCount(): number {
+    if (!this.item.tags) return 0;
+
+    let tagsToDisplay = this.item.tags;
+    if (this.filteredTags && this.filteredTags.length > 0) {
+      tagsToDisplay = this.item.tags.filter(tag =>
+        this.filteredTags.includes(tag.name),
+      );
+    }
+
+    return tagsToDisplay.length - this.displayedTags.length;
   }
 
   getShortPrompt(prompt: string | undefined | null, wordLimit = 20): string {

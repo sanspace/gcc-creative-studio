@@ -96,6 +96,24 @@ class SourceAssetRepository(BaseRepository[SourceAsset, SourceAssetModel]):
                 ),
             )
 
+        if hasattr(search_dto, "workspace_id") and search_dto.workspace_id:
+            query = query.where(
+                self.model.workspace_id == search_dto.workspace_id
+            )
+
+        if hasattr(search_dto, "tags") and search_dto.tags:
+            from sqlalchemy import exists
+            from src.tags.schema.tags_model import source_asset_tags, Tag
+
+            for tag_name in search_dto.tags:
+                query = query.where(
+                    select(source_asset_tags.c.source_asset_id)
+                    .join(Tag, Tag.id == source_asset_tags.c.tag_id)
+                    .where(source_asset_tags.c.source_asset_id == self.model.id)
+                    .where(Tag.name == tag_name)
+                    .exists()
+                )
+
         # Count
         count_query = select(func.count()).select_from(query.subquery())
         count_result = await self.db.execute(count_query)

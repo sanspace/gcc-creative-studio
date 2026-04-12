@@ -46,6 +46,7 @@ def fixture_mock_dependencies():
         "gcs_service": MagicMock(),
         "iam_signer": MagicMock(),
         "imagen_service": AsyncMock(),
+        "tags_repo": AsyncMock(),
     }
 
 
@@ -57,6 +58,7 @@ def fixture_service(mock_dependencies):
         gcs_service=mock_dependencies["gcs_service"],
         iam_signer=mock_dependencies["iam_signer"],
         imagen_service=mock_dependencies["imagen_service"],
+        tags_repo=mock_dependencies["tags_repo"],
     )
 
 

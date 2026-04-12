@@ -238,6 +238,8 @@ export class UsersManagementComponent implements OnInit, OnDestroy {
         return '!bg-blue-500/20 !text-blue-300';
       case UserRolesEnum.CREATOR.toLowerCase():
         return '!bg-purple-500/20 !text-purple-300';
+      case UserRolesEnum.WORKFLOWS.toLowerCase():
+        return '!bg-green-500/20 !text-green-300';
       default:
         // It's good practice to have a default style
         return '!bg-gray-500/20 !text-gray-300';

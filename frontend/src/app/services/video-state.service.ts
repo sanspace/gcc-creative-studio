@@ -41,7 +41,7 @@ export class VideoStateService {
   private initialState: VideoState = {
     prompt: '',
     aspectRatio: '16:9',
-    model: 'veo-3.1-generate-preview',
+    model: 'veo-3.1-generate-001',
     style: null,
     colorAndTone: null,
     lighting: null,

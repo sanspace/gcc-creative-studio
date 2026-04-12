@@ -21,7 +21,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from src.auth.auth_guard import get_current_user
-from src.users.user_model import UserModel
+from src.users.user_model import UserModel, UserRoleEnum
 from src.workflows.workflow_controller import router
 from src.workflows.workflow_service import WorkflowService
 
@@ -29,7 +29,10 @@ from src.workflows.workflow_service import WorkflowService
 @pytest.fixture(name="mock_user")
 def fixture_mock_user():
     return UserModel(
-        id=1, email="test@example.com", name="Test User", roles=["user"]
+        id=1,
+        email="test@example.com",
+        name="Test User",
+        roles=[UserRoleEnum.WORKFLOWS],
     )
 
 

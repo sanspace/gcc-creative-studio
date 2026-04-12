@@ -32,6 +32,7 @@ class UserRoleEnum(str, Enum):
     USER = "user"  # Basic access to browse and use public features.
     CREATOR = "creator"  # Can create and manage their own content.
     ADMIN = "admin"  # Has full administrative privileges, including user management.
+    WORKFLOWS = "workflows"  # Can interact with workflows.
 
 
 class User(Base):

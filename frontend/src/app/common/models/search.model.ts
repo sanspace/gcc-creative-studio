@@ -122,4 +122,5 @@ export interface GallerySearchDto {
   endDate?: string;
   itemType?: string;
   query?: string;
+  tags?: string[];
 }

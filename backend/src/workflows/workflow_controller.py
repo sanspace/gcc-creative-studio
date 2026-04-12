@@ -14,9 +14,9 @@
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Response, status
 
-from src.auth.auth_guard import get_current_user
+from src.auth.auth_guard import RoleChecker, get_current_user
 from src.common.dto.pagination_response_dto import PaginationResponseDto
-from src.users.user_model import UserModel
+from src.users.user_model import UserModel, UserRoleEnum
 from src.workflows.dto.batch_execution_dto import (
     BatchExecutionRequestDto,
     BatchExecutionResponseDto,
@@ -33,6 +33,9 @@ router = APIRouter(
     prefix="/api/workflows",
     tags=["Workflows"],
     responses={404: {"description": "Not found"}},
+    dependencies=[
+        Depends(RoleChecker([UserRoleEnum.WORKFLOWS, UserRoleEnum.ADMIN]))
+    ],
 )
 
 

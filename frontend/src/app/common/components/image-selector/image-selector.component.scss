@@ -153,7 +153,7 @@
   overflow: hidden !important; /* Critical: prevent horizontal scrollbar on the dialog itself */
 }
 
-::ng-deep .mat-mdc-dialog-container .mdc-dialog__surface {
+::ng-deep .image-selector-dialog .mat-mdc-dialog-container .mdc-dialog__surface {
   background: transparent !important;
   border-radius: 20px !important;
   overflow: hidden !important; /* Ensure the dialog shell doesn't show scrollbars */
@@ -167,4 +167,8 @@
   .mat-mdc-dialog-container {
     padding: 0 !important;
   }
+}
+
+::ng-deep .mat-mdc-tab-body-content {
+  overflow: hidden !important;
 }

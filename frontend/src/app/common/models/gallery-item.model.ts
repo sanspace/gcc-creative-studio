@@ -15,6 +15,7 @@
  */
 
 import {PaginatedResponse} from './paginated-response.model';
+import {TagModel} from '../services/tags.service';
 
 export interface BaseGalleryItem {
   id: number;
@@ -23,6 +24,7 @@ export interface BaseGalleryItem {
   createdAt: string;
   status?: string;
   deletedAt?: string;
+  tags?: TagModel[];
 
   // Display fields (optional fallbacks for backward compatibility)
   mimeType?: string;
@@ -47,6 +49,8 @@ export interface BaseGalleryItem {
   enrichedSourceMediaItems?: any[];
   model?: string;
   userEmail?: string;
+  userPicture?: string;
+
   generationTime?: number;
   voiceName?: string;
   languageCode?: string;
@@ -71,6 +75,7 @@ export interface BaseGalleryItem {
 }
 
 export interface MediaItemMetadata {
+  tags?: string[];
   model?: string;
   style?: string;
   prompt?: string;
@@ -98,6 +103,7 @@ export interface MediaItemMetadata {
 }
 
 export interface SourceAssetMetadata {
+  tags?: string[];
   isAudio?: boolean;
   isVideo?: boolean;
   mimeType?: string;

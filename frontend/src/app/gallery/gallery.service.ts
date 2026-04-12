@@ -148,6 +148,7 @@ export class GalleryService implements OnDestroy {
     body: GallerySearchDto,
   ): Observable<PaginatedGalleryResponse> {
     this.isLoading$.next(true);
+
     const galleryUrl = `${environment.backendURL}/gallery/search`;
     return this.http
       .post<PaginatedGalleryResponse>(galleryUrl, body)
@@ -238,10 +239,11 @@ export class GalleryService implements OnDestroy {
     return data.map(item => this.mapUnifiedItem(item));
   }
 
-  private mapUnifiedItem(item: any): GalleryItem {
+  public mapUnifiedItem(item: any): GalleryItem {
     const metadata = item.metadata || {};
     const galleryItem: GalleryItem = {
       id: item.id,
+      tags: item.tags,
       workspaceId: item.workspaceId,
       userId: item.userId,
       createdAt: item.createdAt,
@@ -274,6 +276,8 @@ export class GalleryService implements OnDestroy {
         item.user_email ||
         metadata.userEmail ||
         metadata.user_email,
+      userPicture: item.userPicture || item.user_picture,
+
       generationTime:
         item.generationTime ||
         metadata.generationTime ||

@@ -169,11 +169,15 @@ class CreateVeoDto(BaseDto):
                 model != GenerationModelEnum.VEO_2_GENERATE_EXP
                 and model != GenerationModelEnum.VEO_3_1_PREVIEW
                 and model != GenerationModelEnum.VEO_3_1_GENERATE_001
+                and model != GenerationModelEnum.VEO_3_1_LITE_GENERATE_001
+                and model != GenerationModelEnum.VEO_3_1_FAST_GENERATE_001
             ):
                 raise ValueError(
                     "Reference images are only supported by the "
-                    f"'{GenerationModelEnum.VEO_3_1_PREVIEW.value}' model"
-                    f" or '{GenerationModelEnum.VEO_3_1_GENERATE_001.value}' model.",
+                    f"'{GenerationModelEnum.VEO_3_1_PREVIEW.value}' model, "
+                    f"'{GenerationModelEnum.VEO_3_1_GENERATE_001.value}' model, "
+                    f"'{GenerationModelEnum.VEO_3_1_LITE_GENERATE_001.value}' model, or "
+                    f"'{GenerationModelEnum.VEO_3_1_FAST_GENERATE_001.value}' model.",
                 )
 
             start_image_present = bool(self.start_image_asset_id)
@@ -216,6 +220,8 @@ class CreateVeoDto(BaseDto):
         valid_video_ratios = [
             GenerationModelEnum.VEO_3_1_PREVIEW,
             GenerationModelEnum.VEO_3_1_GENERATE_001,
+            GenerationModelEnum.VEO_3_1_LITE_GENERATE_001,
+            GenerationModelEnum.VEO_3_1_FAST_GENERATE_001,
             GenerationModelEnum.VEO_3_FAST,
             GenerationModelEnum.VEO_3_QUALITY,
             GenerationModelEnum.VEO_3_FAST_PREVIEW,

@@ -1,3 +1,4 @@
+import {trigger, state, style, transition, animate} from '@angular/animations';
 /**
  * Copyright 2025 Google LLC
  *
@@ -35,8 +36,8 @@ import {MatDialog} from '@angular/material/dialog';
 import {MatSnackBar} from '@angular/material/snack-bar';
 import {MatIconRegistry} from '@angular/material/icon';
 import {DomSanitizer, SafeResourceUrl} from '@angular/platform-browser';
-import {Subscription, fromEvent} from 'rxjs';
-import {debounceTime} from 'rxjs/operators';
+import {Subscription, fromEvent, forkJoin, of} from 'rxjs';
+import {debounceTime, map, switchMap} from 'rxjs/operators';
 import {MediaItemSelection} from '../../common/components/image-selector/image-selector.component';
 import {CopyToWorkspaceDialogComponent} from '../../common/components/copy-to-workspace-dialog/copy-to-workspace-dialog.component';
 import {DropdownOption} from '../../common/components/studio-dropdown/studio-dropdown.component';
@@ -47,11 +48,34 @@ import {GallerySearchDto} from '../../common/models/search.model';
 import {UserService} from '../../common/services/user.service';
 import {GalleryService} from '../gallery.service';
 import {WorkspaceStateService} from '../../services/workspace/workspace-state.service';
+import {TagsService, TagModel} from '../../common/services/tags.service';
+import {AssignTagsDialogComponent} from '../../common/components/assign-tags-dialog/assign-tags-dialog.component';
+import {UserRolesEnum} from '../../common/models/user.model';
+import {TagsManagementDialogComponent} from '../../common/components/tags-management-dialog/tags-management-dialog.component';
+import {ConfirmationDialogComponent} from '../../common/components/confirmation-dialog/confirmation-dialog.component';
 
 @Component({
   selector: 'app-media-gallery',
   templateUrl: './media-gallery.component.html',
   styleUrl: './media-gallery.component.scss',
+  providers: [GalleryService],
+  animations: [
+    trigger('fadeSlideInOut', [
+      transition(':enter', [
+        style({opacity: 0, transform: 'translateY(-10px)'}),
+        animate(
+          '300ms ease-out',
+          style({opacity: 1, transform: 'translateY(0)'}),
+        ),
+      ]),
+      transition(':leave', [
+        animate(
+          '300ms ease-in',
+          style({opacity: 0, transform: 'translateY(-10px)'}),
+        ),
+      ]),
+    ]),
+  ],
 })
 export class MediaGalleryComponent implements OnInit, OnDestroy, AfterViewInit {
   @Output() mediaItemSelected = new EventEmitter<MediaItemSelection>();
@@ -69,7 +93,17 @@ export class MediaGalleryComponent implements OnInit, OnDestroy, AfterViewInit {
   @Input() isSelectionMode = false;
   @Input() isSelectorMode = false;
   @Input() maxSelection: number | null = null;
-  @Output() mediaSelected = new EventEmitter<GalleryItem>();
+  @Input() filterByUserEmail: string | null = null;
+  @Input() showFiltersInSelector = false;
+  private isInitialized = false;
+
+  @Input() set itemType(value: string) {
+    this.assetTypeFilter = value;
+    if (this.isInitialized) {
+      this.searchTerm();
+    }
+  }
+  @Output() mediaSelected = new EventEmitter<MediaItemSelection>();
 
   images: GalleryItem[] = [];
   filteredImages: GalleryItem[] = [];
@@ -84,6 +118,11 @@ export class MediaGalleryComponent implements OnInit, OnDestroy, AfterViewInit {
   public isDeleting = false;
   public isDownloading = false;
   public isCopying = false;
+  public showAdvancedFilters = false;
+
+  toggleAdvancedFilters() {
+    this.showAdvancedFilters = !this.showAdvancedFilters;
+  }
   private imagesSubscription: Subscription | undefined;
   private allImagesLoadedSubscription: Subscription | undefined;
   private loadingSubscription: Subscription | undefined;
@@ -96,6 +135,40 @@ export class MediaGalleryComponent implements OnInit, OnDestroy, AfterViewInit {
   public queryFilter = '';
   public startDateFilter: Date | null = null;
   public endDateFilter: Date | null = null;
+  public assetTypeFilter = '';
+  public isAdmin = false;
+  public tagsFilter: string[] = [];
+  public assetTypeOptions: DropdownOption[] = [
+    {value: '', label: 'All Assets'},
+    {value: 'media_item', label: 'Generated Media'},
+    {value: 'source_asset', label: 'Uploaded Assets'},
+  ];
+  public availableTags: TagModel[] = [];
+  tagsPageSize = 10;
+  tagsCurrentPage = 1;
+  onlyMyTags = true;
+  onlyMyMedia = false;
+  userId: number | undefined;
+
+  get displayedTagOptions(): DropdownOption[] {
+    const options = [
+      {value: '', label: 'All Tags', deletable: false},
+      ...this.availableTags.map(t => ({
+        value: t.name,
+        label: t.name,
+        color: t.color,
+      })),
+    ];
+    return options.slice(0, 1 + this.tagsCurrentPage * this.tagsPageSize);
+  }
+
+  loadMoreTags(): void {
+    this.tagsCurrentPage++;
+  }
+
+  hasMoreTags(): boolean {
+    return this.availableTags.length > this.tagsCurrentPage * this.tagsPageSize;
+  }
   public generationModels = MODEL_CONFIGS.map(config => ({
     value: config.value,
     viewValue: config.viewValue.replace('\n', ''), // Remove newlines for dropdown
@@ -109,10 +182,35 @@ export class MediaGalleryComponent implements OnInit, OnDestroy, AfterViewInit {
   ];
 
   public get modelOptions(): DropdownOption[] {
+    let filteredModels = MODEL_CONFIGS;
+
+    if (this.mediaTypeFilter === 'image/*') {
+      filteredModels = MODEL_CONFIGS.filter(m => m.type === 'IMAGE');
+    } else if (this.mediaTypeFilter === 'video/*') {
+      filteredModels = MODEL_CONFIGS.filter(m => m.type === 'VIDEO');
+    } else if (this.mediaTypeFilter === 'audio/*') {
+      filteredModels = MODEL_CONFIGS.filter(m => m.type === 'AUDIO');
+    }
+
     return [
       {value: '', label: 'All Models'},
-      ...this.generationModels.map(m => ({value: m.value, label: m.viewValue})),
+      ...filteredModels.map(m => ({
+        value: m.value,
+        label: m.viewValue.replace('\n', ''),
+      })),
     ];
+  }
+
+  onMediaTypeChange(value: string): void {
+    this.mediaTypeFilter = value;
+
+    // Reset model filter if not valid for new media type
+    const validModels = this.modelOptions.map(o => o.value);
+    if (!validModels.includes(this.generationModelFilter)) {
+      this.generationModelFilter = ''; // Reset to All Models
+    }
+
+    this.searchTerm(); // Trigger search
   }
 
   private autoSlideIntervals: {[id: string]: any} = {};
@@ -129,6 +227,7 @@ export class MediaGalleryComponent implements OnInit, OnDestroy, AfterViewInit {
     private workspaceStateService: WorkspaceStateService,
     private snackBar: MatSnackBar,
     public dialog: MatDialog,
+    private tagsService: TagsService,
     @Inject(PLATFORM_ID) platformId: Object,
   ) {
     this.isBrowser = isPlatformBrowser(platformId);
@@ -141,6 +240,8 @@ export class MediaGalleryComponent implements OnInit, OnDestroy, AfterViewInit {
         'gemini-spark-icon',
         this.setPath(`${this.path}/gemini-spark-icon.svg`),
       );
+    const user = this.userService.getUserDetails();
+    this.userId = user?.id as number;
   }
 
   private path = '../../assets/images';
@@ -150,6 +251,10 @@ export class MediaGalleryComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   ngOnInit(): void {
+    this.isInitialized = true;
+    const userDetails = this.userService.getUserDetails();
+    this.isAdmin = userDetails?.roles?.includes(UserRolesEnum.ADMIN) || false;
+
     this.mediaTypeFilter = this.filterByType || '';
     this.searchTerm(); // Set initial filters
     this.loadingSubscription = this.galleryService.isLoading$.subscribe(
@@ -184,7 +289,87 @@ export class MediaGalleryComponent implements OnInit, OnDestroy, AfterViewInit {
     if (this.isBrowser) {
       this.searchTerm();
       this.showFeaturesHint();
+
+      this.workspaceStateService.activeWorkspaceId$.subscribe(workspaceId => {
+        if (workspaceId) {
+          this.tagsCurrentPage = 1;
+          this.loadTags();
+        }
+      });
     }
+  }
+
+  private loadTags(search?: string): void {
+    const workspaceId = this.workspaceStateService.getActiveWorkspaceId();
+    if (workspaceId) {
+      const filterUserId = this.onlyMyTags ? this.userId : undefined;
+      this.tagsService
+        .getTags(
+          workspaceId,
+          search,
+          this.tagsCurrentPage,
+          this.tagsPageSize,
+          filterUserId,
+        )
+        .subscribe(response => {
+          if (this.tagsCurrentPage === 1) {
+            this.availableTags = response.data;
+          } else {
+            this.availableTags = [...this.availableTags, ...response.data];
+          }
+        });
+    }
+  }
+
+  toggleOnlyMyTags(checked: boolean): void {
+    this.onlyMyTags = checked;
+    this.tagsCurrentPage = 1; // Reset pagination
+    this.loadTags();
+  }
+
+  toggleOnlyMyMedia(checked: boolean): void {
+    this.onlyMyMedia = checked;
+    this.searchTerm();
+  }
+
+  onTagSearch(search: string): void {
+    this.tagsCurrentPage = 1;
+    this.loadTags(search);
+  }
+
+  onTagDelete(option: DropdownOption): void {
+    const dialogRef = this.dialog.open(ConfirmationDialogComponent, {
+      data: {
+        title: 'Delete Tag',
+        message: `Are you sure you want to delete tag "${option.label}"? This action cannot be undone.`,
+      },
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result) {
+        const workspaceId = this.workspaceStateService.getActiveWorkspaceId();
+        const tag = this.availableTags.find(t => t.name === option.value);
+        if (workspaceId && tag) {
+          this.tagsService.deleteTag(workspaceId, tag.id).subscribe(() => {
+            this.snackBar.open(`Tag "${option.label}" deleted.`, 'Close', {
+              duration: 3000,
+            });
+            this.loadTags(); // Reload
+          });
+        }
+      }
+    });
+  }
+
+  openTagsManagement(): void {
+    const dialogRef = this.dialog.open(TagsManagementDialogComponent, {
+      width: '600px',
+    });
+
+    dialogRef.afterClosed().subscribe(() => {
+      this.tagsCurrentPage = 1; // Reset pagination
+      this.loadTags(); // Reload tags after management!
+    });
   }
 
   ngAfterViewInit(): void {
@@ -225,7 +410,11 @@ export class MediaGalleryComponent implements OnInit, OnDestroy, AfterViewInit {
     this.deselectAll();
   }
 
-  toggleSelection(item: GalleryItem, event?: MouseEvent): void {
+  toggleSelection(
+    item: GalleryItem,
+    event?: MouseEvent,
+    selectedIndex = 0,
+  ): void {
     if (event) {
       event.preventDefault();
       event.stopPropagation();
@@ -244,14 +433,20 @@ export class MediaGalleryComponent implements OnInit, OnDestroy, AfterViewInit {
         const id = `${rangeItem.itemType}:${rangeItem.id}`;
         if (!this.selectedItems.has(id)) {
           this.selectedItems.add(id);
-          this.mediaSelected.emit(rangeItem);
+          this.mediaSelected.emit({
+            mediaItem: rangeItem as unknown as MediaItem,
+            selectedIndex: 0,
+          });
         }
       }
     } else {
       const id = `${item.itemType}:${item.id}`;
       if (this.selectedItems.has(id)) {
         this.selectedItems.delete(id);
-        this.mediaSelected.emit(item);
+        this.mediaSelected.emit({
+          mediaItem: item as unknown as MediaItem,
+          selectedIndex,
+        });
       } else {
         // If maxSelection is 1, clear previous and select new
         if (this.maxSelection === 1) {
@@ -263,7 +458,10 @@ export class MediaGalleryComponent implements OnInit, OnDestroy, AfterViewInit {
           return;
         }
         this.selectedItems.add(id);
-        this.mediaSelected.emit(item);
+        this.mediaSelected.emit({
+          mediaItem: item as unknown as MediaItem,
+          selectedIndex,
+        });
       }
     }
     this.lastSelectedIndex = currentIndex;
@@ -396,6 +594,90 @@ export class MediaGalleryComponent implements OnInit, OnDestroy, AfterViewInit {
         this.isDownloading = false;
       },
     });
+  }
+
+  getCombinedTags(): string[] {
+    const tags = new Set<string>();
+    this.selectedItems.forEach(selectedId => {
+      const [type, id] = selectedId.split(':');
+      const item = this.images.find(
+        img => img.id === parseInt(id) && img.itemType === type,
+      );
+      if (item && item.tags) {
+        item.tags.forEach(t => tags.add(t.name));
+      }
+    });
+    return Array.from(tags);
+  }
+
+  openBulkAssignTagsDialog(): void {
+    if (this.selectedItems.size === 0) return;
+
+    const dialogRef = this.dialog.open(AssignTagsDialogComponent, {
+      width: '400px',
+      data: {
+        assetId: 0,
+        assetType: '',
+        existingTags: this.getCombinedTags(),
+      },
+    });
+
+    dialogRef.afterClosed().subscribe((selectedTags: string[]) => {
+      if (selectedTags) {
+        this.performBulkTag(selectedTags);
+      }
+    });
+  }
+
+  private performBulkTag(selectedTags: string[]): void {
+    const workspaceId = this.workspaceStateService.getActiveWorkspaceId();
+    if (!workspaceId) return;
+
+    const selected = Array.from(this.selectedItems);
+    const mediaItemIds = selected
+      .filter(id => id.startsWith('media_item:'))
+      .map(id => parseInt(id.split(':')[1]));
+    const sourceAssetIds = selected
+      .filter(id => id.startsWith('source_asset:'))
+      .map(id => parseInt(id.split(':')[1]));
+
+    const observables = [];
+    if (mediaItemIds.length > 0) {
+      observables.push(
+        this.tagsService.bulkAssign(
+          workspaceId,
+          mediaItemIds,
+          'media_item',
+          selectedTags,
+        ),
+      );
+    }
+    if (sourceAssetIds.length > 0) {
+      observables.push(
+        this.tagsService.bulkAssign(
+          workspaceId,
+          sourceAssetIds,
+          'source_asset',
+          selectedTags,
+        ),
+      );
+    }
+
+    if (observables.length > 0) {
+      forkJoin(observables).subscribe({
+        next: () => {
+          this.snackBar.open('Tags assigned successfully', 'Close', {
+            duration: 3000,
+          });
+          this.selectedItems.clear();
+          this.lastSelectedIndex = null;
+          this.searchTerm();
+          this.tagsCurrentPage = 1; // Reset tags pagination
+          this.loadTags(); // Reload tags to show new ones
+        },
+        error: err => console.error('Error assigning tags:', err),
+      });
+    }
   }
 
   private updateGroups(): void {
@@ -536,6 +818,7 @@ export class MediaGalleryComponent implements OnInit, OnDestroy, AfterViewInit {
     // Reset local component state for a new search to show the main loader
     this.images = [];
     this.selectedItems.clear();
+    this.tagsCurrentPage = 1; // Reset tags pagination on search
 
     const filters: GallerySearchDto = {limit: 40};
     if (this.queryFilter.trim()) {
@@ -548,6 +831,15 @@ export class MediaGalleryComponent implements OnInit, OnDestroy, AfterViewInit {
     }
     if (this.startDateFilter) {
       filters['startDate'] = this.startDateFilter.toISOString();
+    }
+    if (this.filterByUserEmail) {
+      filters['userEmail'] = this.filterByUserEmail;
+    }
+    if (this.onlyMyMedia) {
+      const user = this.userService.getUserDetails();
+      if (user?.email) {
+        filters['userEmail'] = user.email;
+      }
     }
     if (this.endDateFilter) {
       filters['endDate'] = this.endDateFilter.toISOString();
@@ -568,6 +860,17 @@ export class MediaGalleryComponent implements OnInit, OnDestroy, AfterViewInit {
     if (this.statusFilter) {
       filters['status'] = this.statusFilter;
     }
+    if (this.assetTypeFilter) {
+      filters['itemType'] = this.assetTypeFilter;
+    }
+    if (this.tagsFilter.length > 0) {
+      filters['tags'] = this.tagsFilter;
+    }
     this.galleryService.setFilters(filters);
+  }
+
+  public onTagChange(tags: string[]): void {
+    this.tagsFilter = tags;
+    this.searchTerm();
   }
 }

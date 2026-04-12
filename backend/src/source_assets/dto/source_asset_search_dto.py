@@ -30,3 +30,5 @@ class SourceAssetSearchDto(BaseSearchDto):
     scope: AssetScopeEnum | None = None
     asset_type: AssetTypeEnum | None = None
     original_filename: str | None = None
+    workspace_id: int | None = None
+    tags: list[str] | None = None
