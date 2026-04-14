@@ -72,6 +72,10 @@ class UnifiedGalleryRepository(
         if user_id is not None:
             query = query.where(self.model.user_id == user_id)
 
+        # Filter by user_email directly if provided in search_dto
+        if hasattr(search_dto, "user_email") and search_dto.user_email:
+            query = query.where(self.model.user_email == search_dto.user_email)
+
         # Filter by metadata using JSONB operators
         # 1. Mime Type
         if search_dto.mime_type:

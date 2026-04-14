@@ -54,6 +54,7 @@ class UnifiedGalleryView(Base):
     status: Mapped[str | None] = mapped_column(String)
     workspace_name: Mapped[str | None] = mapped_column(String)
     user_picture: Mapped[str | None] = mapped_column(String)
+    user_email: Mapped[str | None] = mapped_column(String)
 
     # Unified arrays for display
     gcs_uris: Mapped[list[str]] = mapped_column(ARRAY(String))

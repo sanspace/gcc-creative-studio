@@ -40,6 +40,7 @@ class UnifiedGalleryItemResponse(BaseModel):
     deleted_at: datetime | None = None  # To support frontend filters
     workspace_name: str | None = None
     user_picture: str | None = None
+    user_email: str | None = None
     # Map from 'metadata_' in SQLAlchemy model to 'metadata' in Pydantic
     metadata: dict[str, Any] = Field(
         default_factory=dict, validation_alias="metadata_"
