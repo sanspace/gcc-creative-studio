@@ -293,7 +293,7 @@ class AdminRepository:
             update(MediaItem)
             .where(MediaItem.status == JobStatusEnum.PROCESSING.value)
             .where(MediaItem.created_at < one_hour_ago)
-            .values(status="stopped")
+            .values(status=JobStatusEnum.STOPPED.value)
         )
         result = await self.db.execute(query)
         await self.db.commit()

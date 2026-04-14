@@ -38,6 +38,10 @@ async def get_overview_stats(
     end_date: str | None = None,
     admin_service: AdminService = Depends(),
 ):
+    """Retrieves platform overview statistics.
+
+    Includes total users, workspaces, and media generated counts.
+    """
     return await admin_service.get_overview_stats(
         start_date=start_date, end_date=end_date
     )
@@ -49,6 +53,10 @@ async def get_media_over_time(
     end_date: str | None = None,
     admin_service: AdminService = Depends(),
 ):
+    """Retrieves media generation breakdown over time.
+
+    Grouped by date and media type.
+    """
     return await admin_service.get_media_over_time(
         start_date=start_date, end_date=end_date
     )
@@ -60,6 +68,10 @@ async def get_workspace_stats(
     end_date: str | None = None,
     admin_service: AdminService = Depends(),
 ):
+    """Retrieves statistics per workspace.
+
+    Includes total media and breakdown by type for each workspace.
+    """
     return await admin_service.get_workspace_stats(
         start_date=start_date, end_date=end_date
     )
@@ -71,6 +83,10 @@ async def get_active_roles(
     end_date: str | None = None,
     admin_service: AdminService = Depends(),
 ):
+    """Retrieves distribution of active user roles.
+
+    Counts users assigned to each role.
+    """
     return await admin_service.get_active_roles(
         start_date=start_date, end_date=end_date
     )
@@ -82,6 +98,10 @@ async def get_generation_health(
     end_date: str | None = None,
     admin_service: AdminService = Depends(),
 ):
+    """Retrieves health statistics for media generation jobs.
+
+    Counts jobs by status (completed, failed, processing, stopped).
+    """
     return await admin_service.get_generation_health(
         start_date=start_date, end_date=end_date
     )
@@ -95,6 +115,10 @@ async def get_active_users_monthly(
     end_date: str | None = None,
     admin_service: AdminService = Depends(),
 ):
+    """Retrieves monthly active users evolution.
+
+    Counts distinct users active per month.
+    """
     return await admin_service.get_active_users_monthly(
         start_date=start_date, end_date=end_date
     )
@@ -102,5 +126,9 @@ async def get_active_users_monthly(
 
 @router.post("/cleanup-stuck-jobs")
 async def cleanup_stuck_jobs(admin_service: AdminService = Depends()):
+    """Cleans up stuck media generation jobs.
+
+    Marks jobs with 'processing' status that are older than 1 hour as 'stopped'.
+    """
     count = await admin_service.cleanup_stuck_jobs()
     return {"message": f"Cleaned up {count} stuck jobs", "count": count}

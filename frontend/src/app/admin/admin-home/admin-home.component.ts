@@ -412,7 +412,9 @@ export class AdminHomeComponent implements OnInit, AfterViewInit, OnDestroy {
       .attr('transform', `translate(0,${height})`)
       .call(
         d3.axisBottom(x).tickFormat((d: string) => {
-          const date = new Date(d);
+          const parseTime = d3.timeParse('%Y-%m-%d');
+          const date = parseTime(d);
+          if (!date) return d;
           const currentYear = new Date().getFullYear();
           if (date.getFullYear() === currentYear) {
             return d3.timeFormat('%b %d')(date);
