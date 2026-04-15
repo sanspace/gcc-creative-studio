@@ -150,4 +150,8 @@ export class StudioDropdownComponent {
       this.isOpen = false;
     }
   }
+
+  trackByOption(index: number, option: DropdownOption): any {
+    return option.value;
+  }
 }
