@@ -31,6 +31,7 @@ import {map, catchError, filter, tap} from 'rxjs/operators';
 import {MatSnackBar} from '@angular/material/snack-bar';
 import {AuthService} from '../../common/services/auth.service';
 import {handleInfoSnackbar} from '../../utils/handleMessageSnackbar';
+import {JobStatus} from '../../common/models/media-item.model';
 
 import {
   AdminDashboardService,
@@ -409,7 +410,18 @@ export class AdminHomeComponent implements OnInit, AfterViewInit, OnDestroy {
     svg
       .append('g')
       .attr('transform', `translate(0,${height})`)
-      .call(d3.axisBottom(x))
+      .call(
+        d3.axisBottom(x).tickFormat((d: string) => {
+          const parseTime = d3.timeParse('%Y-%m-%d');
+          const date = parseTime(d);
+          if (!date) return d;
+          const currentYear = new Date().getFullYear();
+          if (date.getFullYear() === currentYear) {
+            return d3.timeFormat('%b %d')(date);
+          }
+          return d3.timeFormat('%b %d, %Y')(date);
+        }),
+      )
       .selectAll('text')
       .style('fill', '#9ca3af');
 
@@ -700,10 +712,12 @@ export class AdminHomeComponent implements OnInit, AfterViewInit, OnDestroy {
       .append('g')
       .attr('transform', `translate(${width / 2}, ${height / 2})`);
 
-    const colors = d3
-      .scaleOrdinal<string>()
-      .domain(data.map(d => d.status))
-      .range(['#4ade80', '#ef4444', '#fbbf24']); // completed, failed, pending
+    const statusColors: Record<JobStatus, string> = {
+      [JobStatus.COMPLETED]: '#4ade80',
+      [JobStatus.FAILED]: '#ef4444',
+      [JobStatus.PROCESSING]: '#fbbf24',
+      [JobStatus.STOPPED]: '#9ca3af',
+    };
 
     const pie = d3.pie<AdminGenerationHealth>().value(d => d.count);
 
@@ -726,7 +740,7 @@ export class AdminHomeComponent implements OnInit, AfterViewInit, OnDestroy {
       .data(pie(data))
       .join('path')
       .attr('d', arcGenerator)
-      .attr('fill', d => colors(d.data.status))
+      .attr('fill', d => statusColors[d.data.status] || '#9ca3af')
       .attr('stroke', '#1E1F22')
       .style('stroke-width', '2px')
       .style('opacity', 0.8)
@@ -764,7 +778,7 @@ export class AdminHomeComponent implements OnInit, AfterViewInit, OnDestroy {
       .style('display', 'inline-block')
       .style('width', '12px')
       .style('height', '12px')
-      .style('background-color', d => colors(d.status))
+      .style('background-color', d => statusColors[d.status] || '#9ca3af')
       .style('margin-right', '6px');
 
     legendItems
@@ -935,7 +949,11 @@ export class AdminHomeComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngOnDestroy(): void {
     if (isPlatformBrowser(this.platformId)) {
-      d3.select('body').selectAll('.chart-tooltip').remove();
+      d3.select('body')
+        .selectAll(
+          '.chart-tooltip, .workspace-chart-tooltip, .media-chart-tooltip',
+        )
+        .remove();
     }
   }
 }

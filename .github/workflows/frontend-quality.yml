@@ -2,6 +2,11 @@ name: Frontend Quality
 
 on:
   pull_request:
+    types: [opened, synchronize]
+    branches:
+      - main
+      - develop
+      - test
     paths:
       - 'frontend/**'
   push:

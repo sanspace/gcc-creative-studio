@@ -18,6 +18,8 @@ import {Injectable} from '@angular/core';
 import {HttpClient} from '@angular/common/http';
 import {Observable} from 'rxjs';
 import {map} from 'rxjs/operators';
+import {environment} from '../../../environments/environment';
+import {JobStatus} from '../../common/models/media-item.model';
 
 export interface AdminOverviewStats {
   totalUsers: number;
@@ -53,7 +55,7 @@ export interface AdminActiveRole {
 }
 
 export interface AdminGenerationHealth {
-  status: string;
+  status: JobStatus;
   count: number;
 }
 
@@ -66,7 +68,7 @@ export interface AdminMonthlyActiveUsers {
   providedIn: 'root',
 })
 export class AdminDashboardService {
-  private baseUrl = '/api/admin';
+  private baseUrl = `${environment.backendURL}/admin`;
 
   constructor(private http: HttpClient) {}
 
@@ -145,6 +147,13 @@ export class AdminDashboardService {
         : '';
     return this.http.get<AdminMonthlyActiveUsers[]>(
       `${this.baseUrl}/active-users-monthly${params}`,
+    );
+  }
+
+  cleanupStuckJobs(): Observable<{message: string; count: number}> {
+    return this.http.post<{message: string; count: number}>(
+      `${this.baseUrl}/cleanup-stuck-jobs`,
+      {},
     );
   }
 }

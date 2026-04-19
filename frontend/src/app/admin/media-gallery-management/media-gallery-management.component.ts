@@ -24,6 +24,7 @@ import {MatSnackBar} from '@angular/material/snack-bar';
 import {firstValueFrom} from 'rxjs';
 import {GalleryService} from '../../gallery/gallery.service';
 import {GalleryItem} from '../../common/models/gallery-item.model';
+import {JobStatus} from '../../common/models/media-item.model';
 import {
   TagsService,
   TagModel,
@@ -38,6 +39,7 @@ import {
 import {MatDialog} from '@angular/material/dialog';
 import {ConfirmationDialogComponent} from '../../common/components/confirmation-dialog/confirmation-dialog.component';
 import {MODEL_CONFIGS} from '../../common/config/model-config';
+import {AdminDashboardService} from '../../services/admin/admin-dashboard.service';
 
 @Component({
   selector: 'app-media-gallery-management',
@@ -78,6 +80,7 @@ export class MediaGalleryManagementComponent implements OnInit {
   }));
 
   modelOptions: {value: string; label: string}[] = [];
+  statusOptions: {value: string; label: string}[] = [];
 
   // Pagination
   totalItems = 0;
@@ -94,12 +97,21 @@ export class MediaGalleryManagementComponent implements OnInit {
     private snackBar: MatSnackBar,
     private router: Router,
     private dialog: MatDialog,
+    private adminDashboardService: AdminDashboardService,
   ) {}
 
   ngOnInit(): void {
     this.modelOptions = [
       {value: '', label: 'All Models'},
       ...this.generationModels.map(m => ({value: m.value, label: m.viewValue})),
+    ];
+
+    this.statusOptions = [
+      {value: '', label: 'All Statuses'},
+      {value: JobStatus.COMPLETED, label: 'Completed'},
+      {value: JobStatus.PROCESSING, label: 'Processing'},
+      {value: JobStatus.FAILED, label: 'Failed'},
+      {value: JobStatus.STOPPED, label: 'Stopped'},
     ];
 
     const workspaceId = this.workspaceStateService.getActiveWorkspaceId();
@@ -244,6 +256,38 @@ export class MediaGalleryManagementComponent implements OnInit {
         } catch (err) {
           console.error(`Error deleting item ${item.id}:`, err);
           handleErrorSnackbar(this.snackBar, err, 'Delete item');
+        } finally {
+          this.isLoading = false;
+        }
+      }
+    });
+  }
+
+  async cleanupStuckJobs() {
+    const dialogRef = this.dialog.open(ConfirmationDialogComponent, {
+      width: '400px',
+      data: {
+        title: 'Confirm Cleanup',
+        message:
+          'Are you sure you want to clear stuck jobs older than 1 hour? This will mark them as stopped.',
+      },
+    });
+
+    dialogRef.afterClosed().subscribe(async result => {
+      if (result) {
+        this.isLoading = true;
+        try {
+          const response = await firstValueFrom(
+            this.adminDashboardService.cleanupStuckJobs(),
+          );
+          handleSuccessSnackbar(
+            this.snackBar,
+            response.message || 'Stuck jobs cleared successfully!',
+          );
+          this.resetPaginationAndFetch();
+        } catch (err) {
+          console.error('Error cleaning up stuck jobs:', err);
+          handleErrorSnackbar(this.snackBar, err, 'Clear stuck jobs');
         } finally {
           this.isLoading = false;
         }

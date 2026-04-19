@@ -220,6 +220,8 @@
     flex-direction: column;
     gap: 2px;
     text-align: left;
+    max-height: 300px;
+    overflow-y: auto;
   }
 
   .studio-menu-item {

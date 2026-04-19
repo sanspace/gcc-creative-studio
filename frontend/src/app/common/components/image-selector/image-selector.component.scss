@@ -170,5 +170,10 @@
 }
 
 ::ng-deep .mat-mdc-tab-body-content {
-  overflow: hidden !important;
+  overflow: visible !important;
+}
+
+::ng-deep .gallery-wrapper mat-tab-group,
+::ng-deep .gallery-wrapper .mat-mdc-tab-body-wrapper {
+  height: 100% !important;
 }

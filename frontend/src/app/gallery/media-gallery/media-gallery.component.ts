@@ -854,7 +854,7 @@ export class MediaGalleryComponent implements OnInit, OnDestroy, AfterViewInit {
     if (mimeType) {
       filters['mimeType'] = mimeType;
     }
-    if (this.generationModelFilter && !this.isSelectionMode) {
+    if (this.generationModelFilter) {
       filters['model'] = this.generationModelFilter;
     }
     if (this.statusFilter) {

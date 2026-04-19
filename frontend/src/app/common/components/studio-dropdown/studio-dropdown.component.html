@@ -60,7 +60,7 @@
     <div class="menu-items">
       <button
         mat-button
-        *ngFor="let option of options"
+        *ngFor="let option of options; trackBy: trackByOption"
         (click)="selectOption(option)"
         [class.selected]="multiple ? value?.includes(option.value) : option.value === value"
         class="studio-menu-item"
