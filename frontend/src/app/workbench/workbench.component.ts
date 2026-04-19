@@ -44,6 +44,14 @@ import {
 import {SourceAssetResponseDto} from '../common/services/source-asset.service';
 // --- Interfaces ---
 import {WorkbenchService, TimelineRequest, Clip} from './workbench.service';
+import {StoryboardService} from '../services/storyboard/storyboard.service';
+import {AgentChatService} from './services/agent-chat.service';
+import {
+  TimelineDTO,
+  VideoClipDTO,
+  AudioClipDTO,
+} from '../common/models/storyboard.model';
+import {ActivatedRoute} from '@angular/router';
 
 interface MediaAsset {
   id: string;
@@ -177,6 +185,9 @@ export class WorkbenchComponent implements OnInit, OnDestroy {
   // Services
   private sanitizer = inject(DomSanitizer);
   private workbenchService = inject(WorkbenchService);
+  private agentChatService = inject(AgentChatService);
+  private route = inject(ActivatedRoute);
+  private storyboardService = inject(StoryboardService);
 
   isDownloading = signal(false);
 
@@ -207,6 +218,23 @@ export class WorkbenchComponent implements OnInit, OnDestroy {
     @Inject(PLATFORM_ID) platformId: Object,
   ) {
     this.isBrowser = isPlatformBrowser(platformId);
+
+    // Setup an effect to handle storyboard loading from signal
+    effect(() => {
+      const storyboard = this.agentChatService.currentStoryboard();
+      if (storyboard && storyboard.timeline) {
+        console.log(
+          'Loading timeline from AgentChatService signal:',
+          storyboard.timeline,
+        );
+        this.processGeneratedData(storyboard.timeline);
+      } else {
+        console.log('No storyboard or timeline found, clearing timeline clips.');
+        this.timelineClips.set([]);
+        this.selectedClipId.set(null);
+      }
+    }, { allowSignalWrites: true });
+
     this.matIconRegistry
       .addSvgIcon(
         'white-gemini-spark-icon',
@@ -343,7 +371,21 @@ export class WorkbenchComponent implements OnInit, OnDestroy {
   // Signal to track audio element changes
   audioElementsChanged = signal<number>(0);
 
-  ngOnInit() {}
+  ngOnInit() {
+    this.route.queryParams.subscribe(params => {
+      const storyboardId = params['storyboardId'];
+      if (storyboardId) {
+        console.log('Loading storyboard from route param:', storyboardId);
+        this.storyboardService
+          .getStoryboard(Number(storyboardId))
+          .subscribe(res => {
+            if (res.timeline) {
+              this.processGeneratedData(res.timeline);
+            }
+          });
+      }
+    });
+  }
 
   ngAfterViewInit() {
     this.bgAudios.changes.subscribe(() => {
@@ -595,6 +637,88 @@ export class WorkbenchComponent implements OnInit, OnDestroy {
 
       return [...layoutTrack(vClips), ...otherClips];
     });
+  }
+
+  processGeneratedData(data: TimelineDTO) {
+    console.log('processGeneratedData called with:', data);
+    const newClips: TimelineClip[] = [];
+
+    // Handle Video Clips
+    let currentVideoTime = 0;
+    if (data.video_clips) {
+      data.video_clips.forEach((clip: VideoClipDTO) => {
+        const assetId = String(
+          clip.media_item_id || clip.source_asset_id || '',
+        );
+
+        // Populate assets signal so lookup works
+        const existingAsset = this.assets().find(a => a.id === assetId);
+        if (!existingAsset && clip.presigned_url) {
+          this.assets.update(prev => [
+            ...prev,
+            {
+              id: assetId,
+              name: 'Clip ' + assetId,
+              type: 'video',
+              url: clip.presigned_url!,
+              safeUrl: this.sanitizer.bypassSecurityTrustUrl(clip.presigned_url!),
+              duration: clip.trim_duration || 5,
+              thumbnail: clip.presigned_thumbnail_url,
+            },
+          ]);
+        }
+
+        newClips.push({
+          id: Math.random().toString(36).substr(2, 9),
+          assetId: assetId,
+          startTime: currentVideoTime,
+          duration: clip.trim_duration || 5,
+          offset: clip.trim_offset || 0,
+          trackIndex: 0,
+          color: '#3b82f6',
+        });
+        currentVideoTime += clip.trim_duration || 5;
+      });
+    }
+
+    // Handle Audio Clips
+    if (data.audio_clips) {
+      data.audio_clips.forEach((clip: AudioClipDTO) => {
+        const assetId = clip.presigned_url || '';
+
+        // Populate assets signal
+        const existingAsset = this.assets().find(a => a.id === assetId);
+        if (!existingAsset && clip.presigned_url) {
+          this.assets.update(prev => [
+            ...prev,
+            {
+              id: assetId,
+              name: 'Audio ' + assetId,
+              type: 'audio',
+              url: clip.presigned_url!,
+              safeUrl: this.sanitizer.bypassSecurityTrustUrl(
+                clip.presigned_url!,
+              ),
+              duration: clip.trim_duration || 5,
+            },
+          ]);
+        }
+
+        newClips.push({
+          id: Math.random().toString(36).substr(2, 9),
+          assetId: assetId,
+          startTime: clip.start_offset || 0,
+          duration: clip.trim_duration || 5,
+          offset: clip.trim_offset || 0,
+          trackIndex: 1, // Audio track
+          color: '#10b981',
+        });
+      });
+    }
+
+    console.log('Setting timelineClips to:', newClips);
+    this.timelineClips.set(newClips);
+    this.refreshTimelineLayout();
   }
 
   getAssetThumbnail(id: string): string | undefined {

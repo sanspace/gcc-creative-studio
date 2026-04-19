@@ -21,7 +21,7 @@ import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
 
-from fastapi import Depends
+from fastapi import Depends, HTTPException
 from google.cloud.logging import Client as LoggerClient
 from google.cloud.logging.handlers import CloudLoggingHandler
 from google.genai import types
@@ -157,37 +157,64 @@ def _process_video_in_background(
 
                         # --- Handle Generated Inputs for Source Assets (start/end frames, source video, and references) ---
                         if request_dto.source_video_asset_id:
-                            video_asset = await source_asset_repo.get_by_id(
-                                request_dto.source_video_asset_id,
-                            )
-                            if video_asset:
-                                source_video_for_api = types.Video(
-                                    uri=video_asset.gcs_uri,
-                                    mime_type=video_asset.mime_type,
-                                )
+                            ref = request_dto.source_video_asset_id
+                            if ref.type == "media_item":
+                                parent_item = await media_repo.get_by_id(ref.id)
+                                if parent_item and parent_item.gcs_uris:
+                                    source_video_for_api = types.Video(
+                                        uri=parent_item.gcs_uris[0],
+                                        mime_type=parent_item.mime_type,
+                                    )
                             else:
-                                worker_logger.warning(
-                                    f"Could not find source video asset: {request_dto.source_video_asset_id}",
+                                video_asset = await source_asset_repo.get_by_id(
+                                    ref.id
                                 )
+                                if video_asset:
+                                    source_video_for_api = types.Video(
+                                        uri=video_asset.gcs_uri,
+                                        mime_type=video_asset.mime_type,
+                                    )
+                                else:
+                                    worker_logger.warning(
+                                        f"Could not find source video asset: {ref.id}",
+                                    )
                         if request_dto.start_image_asset_id:
-                            start_asset = await source_asset_repo.get_by_id(
-                                request_dto.start_image_asset_id,
-                            )
-                            if start_asset:
-                                start_image_for_api = types.Image(
-                                    gcs_uri=start_asset.gcs_uri,
-                                    mime_type=start_asset.mime_type,
+                            ref = request_dto.start_image_asset_id
+                            if ref.type == "media_item":
+                                parent_item = await media_repo.get_by_id(ref.id)
+                                if parent_item and parent_item.gcs_uris:
+                                    start_image_for_api = types.Image(
+                                        gcs_uri=parent_item.gcs_uris[0],
+                                        mime_type=parent_item.mime_type,
+                                    )
+                            else:
+                                start_asset = await source_asset_repo.get_by_id(
+                                    ref.id
                                 )
+                                if start_asset:
+                                    start_image_for_api = types.Image(
+                                        gcs_uri=start_asset.gcs_uri,
+                                        mime_type=start_asset.mime_type,
+                                    )
 
                         if request_dto.end_image_asset_id:
-                            end_asset = await source_asset_repo.get_by_id(
-                                request_dto.end_image_asset_id,
-                            )
-                            if end_asset:
-                                end_image_for_api = types.Image(
-                                    gcs_uri=end_asset.gcs_uri,
-                                    mime_type=end_asset.mime_type,
+                            ref = request_dto.end_image_asset_id
+                            if ref.type == "media_item":
+                                parent_item = await media_repo.get_by_id(ref.id)
+                                if parent_item and parent_item.gcs_uris:
+                                    end_image_for_api = types.Image(
+                                        gcs_uri=parent_item.gcs_uris[0],
+                                        mime_type=parent_item.mime_type,
+                                    )
+                            else:
+                                end_asset = await source_asset_repo.get_by_id(
+                                    ref.id
                                 )
+                                if end_asset:
+                                    end_image_for_api = types.Image(
+                                        gcs_uri=end_asset.gcs_uri,
+                                        mime_type=end_asset.mime_type,
+                                    )
 
                         if request_dto.reference_images:
                             worker_logger.info(
@@ -715,27 +742,61 @@ class VeoService:
         """
         # 1. Prepare source asset links if they exist
         source_assets: list[SourceAssetLink] = []
+        source_media_items: list[SourceMediaItemLink] = []
+
         if request_dto.start_image_asset_id:
-            source_assets.append(
-                SourceAssetLink(
-                    asset_id=request_dto.start_image_asset_id,
-                    role=AssetRoleEnum.START_FRAME,
-                ),
-            )
+            ref = request_dto.start_image_asset_id
+            if ref.type == "media_item":
+                source_media_items.append(
+                    SourceMediaItemLink(
+                        media_item_id=ref.id,
+                        media_index=0,
+                        role=AssetRoleEnum.START_FRAME,
+                    )
+                )
+            else:
+                source_assets.append(
+                    SourceAssetLink(
+                        asset_id=ref.id,
+                        role=AssetRoleEnum.START_FRAME,
+                    )
+                )
+
         if request_dto.end_image_asset_id:
-            source_assets.append(
-                SourceAssetLink(
-                    asset_id=request_dto.end_image_asset_id,
-                    role=AssetRoleEnum.END_FRAME,
-                ),
-            )
+            ref = request_dto.end_image_asset_id
+            if ref.type == "media_item":
+                source_media_items.append(
+                    SourceMediaItemLink(
+                        media_item_id=ref.id,
+                        media_index=0,
+                        role=AssetRoleEnum.END_FRAME,
+                    )
+                )
+            else:
+                source_assets.append(
+                    SourceAssetLink(
+                        asset_id=ref.id,
+                        role=AssetRoleEnum.END_FRAME,
+                    )
+                )
+
         if request_dto.source_video_asset_id:
-            source_assets.append(
-                SourceAssetLink(
-                    asset_id=request_dto.source_video_asset_id,
-                    role=AssetRoleEnum.VIDEO_EXTENSION_SOURCE,
-                ),
-            )
+            ref = request_dto.source_video_asset_id
+            if ref.type == "media_item":
+                source_media_items.append(
+                    SourceMediaItemLink(
+                        media_item_id=ref.id,
+                        media_index=0,
+                        role=AssetRoleEnum.VIDEO_EXTENSION_SOURCE,
+                    )
+                )
+            else:
+                source_assets.append(
+                    SourceAssetLink(
+                        asset_id=ref.id,
+                        role=AssetRoleEnum.VIDEO_EXTENSION_SOURCE,
+                    )
+                )
 
         if request_dto.reference_images:
             for ref_image in request_dto.reference_images:
@@ -768,7 +829,9 @@ class VeoService:
             composition=request_dto.composition,
             negative_prompt=request_dto.negative_prompt,
             duration_seconds=request_dto.duration_seconds,
-            source_media_items=request_dto.source_media_items or None,
+            source_media_items=(request_dto.source_media_items or [])
+            + source_media_items
+            or None,
             source_assets=source_assets or None,
             gcs_uris=[],
             thumbnail_uris=[],
@@ -817,6 +880,12 @@ class VeoService:
 
         for video_input in request_dto.inputs:
             if video_input.type == "media_item":
+                item = await self.media_repo.get_by_id(video_input.id)
+                if not item or item.mime_type != MimeTypeEnum.VIDEO_MP4:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"MediaItem '{video_input.id}' not found or is not a video.",
+                    )
                 source_media_items.append(
                     SourceMediaItemLink(
                         media_item_id=video_input.id,
@@ -825,6 +894,12 @@ class VeoService:
                     ),
                 )
             elif video_input.type == "source_asset":
+                asset = await self.source_asset_repo.get_by_id(video_input.id)
+                if not asset or asset.mime_type != MimeTypeEnum.VIDEO_MP4:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"SourceAsset '{video_input.id}' not found or is not a video.",
+                    )
                 source_assets.append(
                     SourceAssetLink(
                         asset_id=video_input.id,

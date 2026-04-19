@@ -170,21 +170,69 @@ class TestVeoServiceMethods:
             gcs_uris=[],
             thumbnail_uris=[],
         )
-
+        mock_item = MediaItemModel(
+            id=1,
+            workspace_id=1,
+            user_id=1,
+            user_email="test@example.com",
+            mime_type=MimeTypeEnum.VIDEO_MP4,
+            model=GenerationModelEnum.VEO_3_QUALITY,
+            aspect_ratio="16:9",
+            gcs_uris=["gs://b/1.mp4"],
+            thumbnail_uris=[],
+        )
+        mock_media_repo.get_by_id.side_effect = [mock_item, mock_item]
         mock_media_repo.create.return_value = placeholder
-
         mock_executor = MagicMock()
-
         response = await veo_service.start_video_concatenation_job(
             request_dto=request_dto,
             user=sample_user,
             executor=mock_executor,
         )
-
         assert response is not None
         assert response.id == 456
         mock_media_repo.create.assert_called_once()
         mock_executor.submit.assert_called_once()
+
+    @pytest.mark.anyio
+    async def test_start_video_concatenation_job_invalid_mime_type(
+        self,
+        veo_service,
+        mock_media_repo,
+        sample_user,
+    ):
+        request_dto = ConcatenateVideosDto(
+            workspace_id=1,
+            name="Concat Video",
+            inputs=[
+                ConcatenationInput(type="media_item", id=1),
+                ConcatenationInput(type="media_item", id=2),
+            ],
+        )
+        # Setup
+        mock_image_item = MediaItemModel(
+            id=1,
+            workspace_id=1,
+            user_id=1,
+            user_email="test@example.com",
+            mime_type=MimeTypeEnum.IMAGE_PNG,
+            model=GenerationModelEnum.IMAGEN_3_001,
+            aspect_ratio="16:9",
+            gcs_uris=["gs://b/1.png"],
+            thumbnail_uris=[],
+        )
+        mock_media_repo.get_by_id.return_value = mock_image_item
+        mock_executor = MagicMock()
+        from fastapi import HTTPException
+
+        with pytest.raises(HTTPException) as exc_info:
+            await veo_service.start_video_concatenation_job(
+                request_dto=request_dto,
+                user=sample_user,
+                executor=mock_executor,
+            )
+        assert exc_info.value.status_code == 400
+        assert "not a video" in exc_info.value.detail
 
 
 class TestBackgroundWorkers:

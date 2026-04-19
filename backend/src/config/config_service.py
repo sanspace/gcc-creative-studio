@@ -44,6 +44,7 @@ class ConfigService(BaseSettings):
     ENVIRONMENT: str = "development"
     FRONTEND_URL: str = "http://localhost:4200"
     BACKEND_URL: str = "http://localhost:8080"
+    IZUMI_AGENT_URL: str = "http://izumi-agent:8080"
     LOG_LEVEL: str = "INFO"
     INIT_VERTEX: bool = True
 
@@ -93,6 +94,9 @@ class ConfigService(BaseSettings):
         ""  # The email address to send from (e.g., no-reply@your-domain.com)
     )
     ADMIN_USER_EMAIL: str = "system"
+
+    # --- Agent Auth ---
+    INTERNAL_AGENT_SECRET: str = "secret-agent-key"
 
     # --- Workflows ---
     WORKFLOWS_LOCATION: str = "us-central1"

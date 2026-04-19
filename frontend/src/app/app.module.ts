@@ -40,6 +40,7 @@ import {ClipboardModule} from '@angular/cdk/clipboard';
 import {DragDropModule} from '@angular/cdk/drag-drop';
 import {ScrollingModule} from '@angular/cdk/scrolling';
 import {NgOptimizedImage} from '@angular/common';
+import {MarkdownModule} from 'ngx-markdown';
 import {
   HTTP_INTERCEPTORS,
   provideHttpClient,
@@ -94,6 +95,8 @@ import {LoginComponent} from './login/login.component';
 import {VideoComponent} from './video/video.component';
 import {VtoComponent} from './vto/vto.component';
 import {WorkbenchComponent} from './workbench/workbench.component';
+import {ProjectsComponent} from './projects/projects.component';
+import {ChatInterfaceComponent} from './workbench/components/chat-interface/chat-interface.component';
 import {BatchExecutionModalComponent} from './workflows/execution-history/batch-execution-modal/batch-execution-modal.component';
 import {ExecutionDetailsModalComponent} from './workflows/execution-history/execution-details-modal/execution-details-modal.component';
 import {ExecutionHistoryComponent} from './workflows/execution-history/execution-history.component';
@@ -107,6 +110,7 @@ import {WorkflowEditorComponent} from './workflows/workflow-editor/workflow-edit
 import {WorkflowListComponent} from './workflows/workflow-list/workflow-list.component';
 import {WorkflowStatusPipe} from './workflows/workflow-status.pipe';
 import {UpscaleComponent} from './upscale/upscale.component';
+import {StoryboardComponent} from './workbench/components/storyboard/storyboard.component';
 
 @NgModule({
   declarations: [
@@ -126,6 +130,7 @@ import {UpscaleComponent} from './upscale/upscale.component';
     SourceAssetGalleryComponent,
     ImageCropperDialogComponent,
     WorkbenchComponent,
+    ChatInterfaceComponent,
     AudioComponent,
     AddVoiceDialogComponent,
     WorkflowListComponent,
@@ -140,11 +145,13 @@ import {UpscaleComponent} from './upscale/upscale.component';
     StepExecutionDetailsComponent,
     BatchExecutionModalComponent,
     UpscaleComponent,
+    ProjectsComponent,
   ],
   imports: [
     BrowserModule,
     AppRoutingModule,
     NgOptimizedImage,
+    MarkdownModule.forRoot(),
     MatTooltipModule,
     MatToolbarModule,
     MatDividerModule,
@@ -183,6 +190,7 @@ import {UpscaleComponent} from './upscale/upscale.component';
     MatPaginatorModule,
     ClipboardModule,
     WorkflowStatusPipe,
+    StoryboardComponent,
   ],
   providers: [
     provideClientHydration(),
