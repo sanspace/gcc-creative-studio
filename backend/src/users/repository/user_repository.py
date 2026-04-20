@@ -46,7 +46,9 @@ class UserRepository(BaseRepository[User, UserModel]):
     ) -> PaginationResponseDto[UserModel]:
         """Performs a paginated query that includes the total document count."""
         # 1. Start with select
-        query = select(self.model)
+        query = select(self.model).execution_options(
+            include_deleted=search_dto.include_deleted
+        )
 
         # 2. Apply filters
         if search_dto.email:
@@ -57,11 +59,12 @@ class UserRepository(BaseRepository[User, UserModel]):
                 self.model.roles.contains([search_dto.role.value])
             )
 
-        if not search_dto.include_deleted:
-            query = query.where(self.model.deleted_at.is_(None))
-
         # Count total documents matching filters
-        count_query = select(func.count()).select_from(query.subquery())
+        count_query = (
+            select(func.count())
+            .select_from(query.subquery())
+            .execution_options(include_deleted=search_dto.include_deleted)
+        )
         count_result = await self.db.execute(count_query)
         total_count = count_result.scalar_one()
 
