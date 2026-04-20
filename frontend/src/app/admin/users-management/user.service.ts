@@ -60,7 +60,7 @@ export class UserService {
       .set('email', filter);
 
     if (includeDeleted) {
-      params = params.set('include_deleted', 'true');
+      params = params.set('includeDeleted', 'true');
     }
 
     if (offset !== undefined) params = params.set('offset', offset.toString());
