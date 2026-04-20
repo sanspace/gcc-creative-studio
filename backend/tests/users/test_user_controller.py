@@ -84,6 +84,27 @@ class TestListAllUsers:
         response = api_client.get("/api/users")
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
+    def test_list_all_users_include_deleted(
+        self,
+        admin_client,
+        mock_user_service,
+        mock_user,
+    ):
+        mock_pagination = PaginationResponseDto[UserModel](
+            count=1,
+            page=1,
+            page_size=10,
+            total_pages=1,
+            data=[mock_user],
+        )
+        mock_user_service.find_all_users.return_value = mock_pagination
+
+        response = admin_client.get("/api/users?includeDeleted=true")
+
+        assert response.status_code == status.HTTP_200_OK
+        args, kwargs = mock_user_service.find_all_users.call_args
+        assert args[0].include_deleted is True
+
 
 class TestGetUserById:
     """Tests for GET /api/users/{id}."""
