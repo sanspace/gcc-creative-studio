@@ -91,7 +91,6 @@ export class ChatInterfaceComponent implements OnInit, AfterViewChecked {
 
   isBrowser = true;
   private shouldScrollToBottom = true;
-  autoScrollEnabled = true;
 
   @ViewChild('chatContainer') private chatContainer!: ElementRef;
   @ViewChild('expandDialog') expandDialog!: TemplateRef<any>;
@@ -147,7 +146,7 @@ export class ChatInterfaceComponent implements OnInit, AfterViewChecked {
   }
 
   ngAfterViewChecked() {
-    if (this.shouldScrollToBottom || this.autoScrollEnabled) {
+    if (this.shouldScrollToBottom) {
       this.scrollToBottom();
       this.shouldScrollToBottom = false;
     }
@@ -680,7 +679,11 @@ export class ChatInterfaceComponent implements OnInit, AfterViewChecked {
               this.agentChatService.currentStoryboard.set(sb);
               currentMsgs[agentMessageIndex].text = extraction.cleanText;
             }
-            if (msg.text.includes('Your final video has been generated!')) {
+            if (
+              (msg.text.includes('final video') &&
+                msg.text.includes('generated successfully')) ||
+              msg.text.includes('Creative Studio workbench')
+            ) {
               const workspaceId =
                 this.workspaceStateService.getActiveWorkspaceId();
               if (workspaceId && this.currentSessionId) {
@@ -692,6 +695,8 @@ export class ChatInterfaceComponent implements OnInit, AfterViewChecked {
                         this.agentChatService.currentStoryboard.set(
                           storyboards[0],
                         );
+                        // Notify that video is generated
+                        this.agentChatService.videoGenerated$.next(true);
                       }
                     },
                     error: err =>
@@ -738,12 +743,7 @@ export class ChatInterfaceComponent implements OnInit, AfterViewChecked {
     this.selectedImages.set([]);
   }
   onScroll() {
-    if (!this.chatContainer) return;
-    const element = this.chatContainer.nativeElement;
-    // If user is within 50px of bottom, consider it "at bottom" and enable autoscroll
-    const atBottom =
-      element.scrollHeight - element.scrollTop <= element.clientHeight + 50;
-    this.autoScrollEnabled = atBottom;
+    // No-op: we use isNearBottom() directly when new messages arrive
   }
   private isNearBottom(): boolean {
     if (!this.chatContainer) return false;

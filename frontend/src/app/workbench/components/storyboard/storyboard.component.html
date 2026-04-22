@@ -46,6 +46,9 @@
       <button *ngIf="!isGenerating()" class="sb-btn-glow" (click)="onGenerateVideo()" [disabled]="scenes().length <= 1">
         <mat-icon class="sb-icon-sm">auto_awesome</mat-icon> Generate Video
       </button>
+      <button *ngIf="showSeeVideoBtn() && !isGenerating()" class="sb-btn-glow-gold ml-2" (click)="onSeeVideoGenerated()">
+        <mat-icon class="sb-icon-sm">visibility</mat-icon> See Video Generated
+      </button>
     </div>
   </header>
 
@@ -57,7 +60,7 @@
       <h3 class="text-2xl text-white font-semibold">
         {{ isGeneratingVideo() ? 'Stitching all together and generating your final video' : 'Generating Your Narrative...' }}
       </h3>
-      <p class="text-gray-400 text-center max-w-md">Our AI Director is analyzing your brief, creating scene compositions, and writing the scripts.</p>
+      <p [@messageAnimation]="loadingMessage()" class="text-gray-400 text-center max-w-md">{{ loadingMessage() }}</p>
     </div>
     
     <ng-container *ngIf="!isGenerating()">

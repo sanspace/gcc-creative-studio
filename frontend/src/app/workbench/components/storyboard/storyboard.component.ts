@@ -21,6 +21,8 @@ import {
   inject,
   effect,
   computed,
+  Output,
+  EventEmitter,
 } from '@angular/core';
 import {CommonModule} from '@angular/common';
 import {FormsModule} from '@angular/forms';
@@ -33,6 +35,7 @@ import {
 import {AgentChatService} from '../../services/agent-chat.service';
 import {StoryboardService} from '../../../services/storyboard/storyboard.service';
 import {MatDialog} from '@angular/material/dialog';
+import {trigger, style, animate, transition} from '@angular/animations';
 import {
   ImageSelectorComponent,
   MediaItemSelection,
@@ -67,6 +70,17 @@ export interface Scene {
   templateUrl: './storyboard.component.html',
   styleUrls: ['./storyboard.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  animations: [
+    trigger('messageAnimation', [
+      transition('* => *', [
+        style({opacity: 0, transform: 'translateY(10px)'}),
+        animate(
+          '300ms ease-out',
+          style({opacity: 1, transform: 'translateY(0)'}),
+        ),
+      ]),
+    ]),
+  ],
 })
 export class StoryboardComponent {
   private agentChatService = inject(AgentChatService);
@@ -85,46 +99,126 @@ export class StoryboardComponent {
   isGenerating = computed(
     () => this.isGeneratingStoryboard() || this.isGeneratingVideo(),
   );
+  showSeeVideoBtn = signal<boolean>(false);
+
+  // Loading Messages
+  private readonly storyboardMessages = [
+    'Izumi is sketching out your vision... matching tones, and drafting the perfect hook.',
+    'Translating your brief into pure creative gold. Finding the best angles for your brand.',
+    'Casting virtual actors and scouting digital locations... your narrative is coming to life.',
+    'Brewing some virtual coffee for the AI Director. Your storyboard is incoming!',
+    'Fun Fact: The very first TV commercial aired in 1941 and cost just $9. Izumi is making yours look like a million bucks.',
+    "Joke: Why did the marketer break up with the calendar? Too few dates! (Don't worry, Izumi's timeline is perfectly planned)",
+    'Joke: Why do copywriters always feel cold? Because they are surrounded by drafts! (Izumi is warming yours up right now)',
+  ];
+
+  private readonly videoMessages = [
+    'Stitching it all together... ensuring every frame transitions like butter.',
+    'Rendering pixels, applying color grading, and adding that final sprinkle of digital magic.',
+    'Syncing the audio, locking the frames, and preparing your campaign for launch.',
+    'Polishing the visuals until they shine. Your masterpiece is almost ready for the spotlight.',
+    'Fun Fact: 90% of information transmitted to the brain is visual. Izumi is making sure your ad is absolutely unforgettable.',
+    'Joke: Why did the video editor go to therapy? To work on their transition issues! (Izumi’s cuts, however, are flawless)',
+    'Joke: How do videographers communicate? Through cutting remarks and flashy transitions! (Rendering your final cut now...)',
+  ];
+
+  loadingMessage = signal<string>(
+    'Our AI Director is analyzing your brief, creating scene compositions, and writing the scripts.',
+  );
+  private loadingMessageInterval: any;
+
+  @Output() closeAgentView = new EventEmitter<void>();
 
   constructor() {
     // Reset video generation state when video is completed
     this.agentChatService.videoGenerated$.subscribe(() => {
       this.isGeneratingVideo.set(false);
+      this.showSeeVideoBtn.set(true);
     });
 
     effect(
       () => {
-        const sb = this.agentChatService.currentStoryboard();
-        if (sb && sb.scenes && sb.scenes.length > 0) {
-          const parsedScenes = sb.scenes.map((s: any, idx: number) => {
-            return {
-              id: `scene-${idx + 1}`,
-              title: s.topic || `Scene ${idx + 1}`,
-              shots: [
-                {
-                  id: `shot-${idx + 1}-1`,
-                  // Use generated asset URL if available, otherwise fallback to old structure or placeholder
-                  imageUrl:
-                    s.first_frame_generated_url ||
-                    s.first_frame_prompt?.generated_asset_url ||
-                    'assets/images/storyboard-default.png',
-                  assetId:
-                    s.first_frame_prompt?.asset_id ||
-                    s.first_frame_media_item_id,
-                  characters: [],
-                  description:
-                    s.video_description ||
-                    s.first_frame_description ||
-                    s.video_prompt?.description ||
-                    s.first_frame_prompt?.description ||
-                    'No description provided',
-                },
-              ],
-            };
-          });
-          this.scenes.set(parsedScenes);
+        const generating = this.isGenerating();
+        const generatingVideo = this.isGeneratingVideo();
+
+        if (generating) {
+          if (!this.loadingMessageInterval) {
+            this.loadingMessageInterval = setInterval(() => {
+              const messages = generatingVideo
+                ? this.videoMessages
+                : this.storyboardMessages;
+              const randomIndex = Math.floor(Math.random() * messages.length);
+              this.loadingMessage.set(messages[randomIndex]);
+            }, 5000);
+          }
         } else {
-          // Default Welcome View
+          if (this.loadingMessageInterval) {
+            clearInterval(this.loadingMessageInterval);
+            this.loadingMessageInterval = null;
+          }
+          this.loadingMessage.set(
+            'Our AI Director is analyzing your brief, creating scene compositions, and writing the scripts.',
+          );
+        }
+      },
+      {allowSignalWrites: true},
+    );
+
+    effect(
+      () => {
+        const sb = this.agentChatService.currentStoryboard();
+        if (sb) {
+          if (sb.timeline) {
+            this.showSeeVideoBtn.set(true);
+          }
+          if (sb.scenes && sb.scenes.length > 0) {
+            const parsedScenes = sb.scenes.map((s: any, idx: number) => {
+              return {
+                id: `scene-${idx + 1}`,
+                title: s.topic || `Scene ${idx + 1}`,
+                shots: [
+                  {
+                    id: `shot-${idx + 1}-1`,
+                    // Use generated asset URL if available, otherwise fallback to old structure or placeholder
+                    imageUrl:
+                      s.first_frame_generated_url ||
+                      s.first_frame_prompt?.generated_asset_url ||
+                      'assets/images/storyboard-default.png',
+                    assetId:
+                      s.first_frame_prompt?.asset_id ||
+                      s.first_frame_media_item_id,
+                    characters: [],
+                    description:
+                      s.video_description ||
+                      s.first_frame_description ||
+                      s.video_prompt?.description ||
+                      s.first_frame_prompt?.description ||
+                      'No description provided',
+                  },
+                ],
+              };
+            });
+            this.scenes.set(parsedScenes);
+          } else {
+            // Default Welcome View
+            this.scenes.set([
+              {
+                id: 'scene-welcome',
+                title: 'Welcome to Ads X Storyboarding',
+                shots: [
+                  {
+                    id: 'shot-welcome-1',
+                    imageUrl: 'assets/images/storyboard-default.png',
+                    characters: [],
+                    description:
+                      'Ask the Ads X Agent to generate a storyboard template for you, and it will build out scenes here dynamically!',
+                  },
+                ],
+              },
+            ]);
+          }
+        } else {
+          // Default Welcome View when no storyboard is loaded
           this.scenes.set([
             {
               id: 'scene-welcome',
@@ -140,6 +234,7 @@ export class StoryboardComponent {
               ],
             },
           ]);
+          this.showSeeVideoBtn.set(false);
         }
       },
       {allowSignalWrites: true},
@@ -209,6 +304,9 @@ export class StoryboardComponent {
     this.isGeneratingVideo.set(true);
     // Notify the Agent Chat Service that the user requested video generation
     this.agentChatService.generateVideoRequest$.next();
+  }
+  onSeeVideoGenerated() {
+    this.closeAgentView.emit();
   }
   onOpenAssetDetail(shot: any) {
     if (shot.assetId) {
