@@ -3,11 +3,10 @@ name: Release Pipeline
 on:
   release:
     types: [created]
-  workflow_dispatch: # Added for easier iterative testing as we discussed
+  workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
-  # This dynamically sets the base image name to your repo path
   IMAGE_BASE: ${{ github.repository }}
 
 jobs:
@@ -16,7 +15,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Modernized to handle both components mentioned in your bootstrap script
         include:
           - service: backend
             context: ./backend
@@ -28,8 +26,9 @@ jobs:
     permissions:
       contents: read
       packages: write
-      id-token: write      # Required for Keyless Cosign signing
-      security-events: write # Required to upload Trivy scan results to Security tab
+      id-token: write      # Required for OIDC and Build Provenance
+      security-events: write 
+      attestations: write  # NEW: Specifically required for official GitHub Attestations
 
     steps:
       - name: Checkout repository
@@ -45,7 +44,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata (tags, labels)
+      - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
@@ -57,18 +56,18 @@ jobs:
 
       - name: Build and push Docker image
         id: build-push
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6 # Updated to v6
         with:
           context: ${{ matrix.context }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          # Modern Feature: GitHub Actions Cache to speed up iterative builds
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@0.20.0
+        # Pinned to v0.35.0 specifically for security after March 2026 compromise
+        uses: aquasecurity/trivy-action@v0.35.0 
         with:
           image-ref: ${{ matrix.image }}@${{ steps.build-push.outputs.digest }}
           format: 'sarif'
@@ -88,16 +87,12 @@ jobs:
         env:
           DIGEST: ${{ steps.build-push.outputs.digest }}
         run: |
-          # Keyless signing via GitHub OIDC
           cosign sign --yes "${{ matrix.image }}@${{ env.DIGEST }}"
-          
-          # Modern Feature: Instead of just 'attaching', we create a signed attestation
-          # This makes the SBOM part of the image's verifiable transparency log
           cosign attest --yes --type cyclonedx --predicate <(trivy image --format cyclonedx "${{ matrix.image }}@${{ env.DIGEST }}") "${{ matrix.image }}@${{ env.DIGEST }}"
 
-      - name: Generate SLSA Provenance
-        # This provides a non-falsifiable record of where and how the image was built
-        uses: github-early-access/generate-build-provenance@v1
+      - name: Attest Build Provenance
+        # Official name for the GA version of build provenance
+        uses: actions/attest-build-provenance@v1 
         with:
           subject-name: ${{ matrix.image }}
           subject-digest: ${{ steps.build-push.outputs.digest }}
