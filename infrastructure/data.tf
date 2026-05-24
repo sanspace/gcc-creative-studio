@@ -6,8 +6,8 @@ module "database" {
   region          = var.region
   resource_prefix = var.resource_prefix
   environment     = var.environment
-  
-  vpc_id          = module.network.network_id
+
+  vpc_id = module.network.network_id
 
   # Guardrail: Explicitly wait for Private Services Access peering to 
   # finish provisioning before kicking off database creation.
@@ -54,11 +54,15 @@ resource "google_secret_manager_secret" "app_secrets" {
   secret_id = each.key
 
   replication {
-    automatic = true
+    user_managed {
+      replicas {
+        location = var.region # restricted to the infra region
+      }
+    }
   }
 
   labels = merge(var.labels, {
-    component = "security"
+    component  = "security"
     managed_by = "terraform"
   })
 }
@@ -70,7 +74,7 @@ resource "google_secret_manager_secret_iam_member" "backend_accessor" {
   project   = google_secret_manager_secret.app_secrets[each.key].project
   secret_id = google_secret_manager_secret.app_secrets[each.key].secret_id
   role      = "roles/secretmanager.secretAccessor"
-  
+
   # References backend module's service account output dynamically
-  member    = "serviceAccount:${module.compute.service_account_email}"
+  member = "serviceAccount:${module.compute.service_account_email}"
 }

@@ -21,7 +21,7 @@ module "compute" {
   vpc_subnet_name = module.network.cloud_run_subnet_name
   database_ip     = module.database.private_ip_address
   image_url       = "${module.artifact.repository_url}/${var.backend_image_name}:${var.backend_image_tag}"
-  
+
   # References the list keys to configure secret environment block mappings
-  secret_ids      = var.application_secrets
+  secret_ids = var.application_secrets
 }

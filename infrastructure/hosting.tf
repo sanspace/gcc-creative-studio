@@ -2,7 +2,7 @@
 # Creates the Firebase Hosting site to deploy to
 resource "google_firebase_hosting_site" "frontend" {
   provider = google-beta
-  project  = var.firebase_project_id
+  project  = var.project_id
   site_id  = var.firebase_site_id
 }
 
@@ -10,7 +10,7 @@ resource "google_firebase_hosting_site" "frontend" {
 resource "google_firebase_hosting_custom_domain" "custom_domain" {
   provider = google-beta
   # Evaluates to 1 if a domain string is provided, 0 if left blank
-  count    = var.custom_domain != "" ? 1 : 0
+  count = var.custom_domain != "" ? 1 : 0
 
   project       = var.project_id
   site_id       = google_firebase_hosting_site.frontend.site_id

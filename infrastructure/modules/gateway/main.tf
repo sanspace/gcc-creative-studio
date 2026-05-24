@@ -61,9 +61,9 @@ module "lb-http" {
   version = "~> 12.0" # Always pin versions for production stability
 
   project = var.project_id
-  
+
   # Dynamic base name to safely isolate multi-tenant/customer deployments
-  name    = "${var.resource_prefix}-${var.environment}-lb"
+  name = "${var.resource_prefix}-${var.environment}-lb"
 
   # SSL Configuration (Mandatory Production Custom Domain Setup)
   ssl                             = true
@@ -78,7 +78,7 @@ module "lb-http" {
           group = var.serverless_neg_id
         }
       ]
-      
+
       # Correct parameter mapping for v12.0 caching rules
       enable_cdn      = var.enable_cdn
       security_policy = google_compute_security_policy.policy.name

@@ -9,12 +9,12 @@ resource "google_compute_network" "vpc" {
 # --- Subnet for Cloud Run Direct VPC Egress ---
 # Cloud Run requires a dedicated subnet to inject private traffic into the VPC.
 resource "google_compute_subnetwork" "cloud_run_subnet" {
-  name                     = "${var.resource_prefix}-${var.environment}-run-subnet"
-  project                  = var.project_id
-  network                  = google_compute_network.vpc.id
-  region                   = var.region
-  ip_cidr_range            = var.cloud_run_cidr
-  
+  name          = "${var.resource_prefix}-${var.environment}-run-subnet"
+  project       = var.project_id
+  network       = google_compute_network.vpc.id
+  region        = var.region
+  ip_cidr_range = var.cloud_run_cidr
+
   # Crucial enterprise guardrail: allows internal routing to Google APIs without public IPs
   private_ip_google_access = true
 }
@@ -48,7 +48,7 @@ resource "google_compute_firewall" "allow_internal_egress" {
   allow {
     protocol = "tcp"
   }
-  
+
   allow {
     protocol = "udp"
   }

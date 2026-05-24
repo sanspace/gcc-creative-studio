@@ -5,10 +5,10 @@ resource "google_artifact_registry_repository" "ghcr_proxy" {
   repository_id = "${var.resource_prefix}-${var.environment}-${var.repository_id}"
   description   = "Regional proxy for GHCR with vulnerability scanning"
   format        = "DOCKER"
-  
+
   # Remote Repository Mode
   mode = "REMOTE_REPOSITORY"
-  
+
   remote_repository_config {
     description = "Proxy for GitHub Container Registry"
     docker_repository {
@@ -24,7 +24,7 @@ resource "google_artifact_registry_repository" "ghcr_proxy" {
   vulnerability_scanning_config {
     enablement_config = "INHERITED" # Inherits project-level scan settings
   }
-  
+
   # Cost Guardrail: Automatically purge cached layers unaccessed for 30 days
   cleanup_policies {
     id     = "delete-stale-cache"

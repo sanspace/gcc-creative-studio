@@ -1,17 +1,17 @@
-variable project_id {
+variable "project_id" {
   type = string
 }
 
-variable region {
+variable "region" {
   type = string
 }
 
-variable environment {
-  type = string
+variable "environment" {
+  type    = string
   default = "development"
 }
 
-variable apis_to_enable {
+variable "apis_to_enable" {
   type = list(string)
   default = [
     "serviceusage.googleapis.com",     # Required to enable other APIs
@@ -69,3 +69,17 @@ variable "domain_name" {
   type        = string
   description = "The custom domain name for the Load Balancer."
 }
+
+variable "firebase_site_id" {
+  type        = string
+  description = "The Firebase Hosting Site ID. If empty, defaults to the project ID."
+  default     = ""
+}
+
+variable "labels" {
+  type        = map(string)
+  description = "Standard resource labels to apply across resources."
+  default     = {}
+}
+
+
