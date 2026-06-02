@@ -82,4 +82,8 @@ variable "labels" {
   default     = {}
 }
 
-
+variable "app_version" {
+  type = string
+  description = "version of the creative studio app we're deploying"
+  default = "latest"
+}

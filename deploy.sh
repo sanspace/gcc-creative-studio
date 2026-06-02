@@ -15,8 +15,20 @@
 
 set -e
 
+# --- Argument Parsing ---
+TARGET_VERSION="latest"
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        -v|--version) TARGET_VERSION="$2"; shift ;;
+        *) warn "Unknown parameter: $1"; echo "Usage: ./deploy.sh [--version v1.2.0]"; exit 1 ;;
+    esac
+    shift
+done
+
+info "Target Release Version: ${C_YELLOW}${TARGET_VERSION}${C_RESET}"
+
 # --- Configuration ---
-REQUIRED_TERRAFORM_VERSION="1.15.1"
+REQUIRED_TERRAFORM_VERSION="1.15.5"
 UPSTREAM_REPO_URL="https://github.com/GoogleCloudPlatform/gcc-creative-studio"
 TEMPLATE_ENV_DIR="environments/example"
 DEFAULT_ENV_NAME="dev"
@@ -312,6 +324,13 @@ configure_environment() {
         info "Configuring terraform.tfvars..."
         sed -i.bak "s|^[#[:space:]]*project_id[[:space:]]*=.*|project_id = \"$GCP_PROJECT_ID\"|g" "$TFVARS_FILE_PATH"
         sed -i.bak "s|^[#[:space:]]*environment[[:space:]]*=.*|environment = \"$ENV_NAME\"|g" "$TFVARS_FILE_PATH"
+
+        # Ensure the target version is passed to Terraform
+        if grep -q "app_version" "$TFVARS_FILE_PATH"; then
+            sed -i.bak "s|^[#[:space:]]*app_version[[:space:]]*=.*|app_version = \"$TARGET_VERSION\"|g" "$TFVARS_FILE_PATH" && rm -f "${TFVARS_FILE_PATH}.bak"
+        else
+            echo -e "\napp_version = \"$TARGET_VERSION\"" >> "$TFVARS_FILE_PATH"
+        fi
         
         prompt_and_update_tfvar "Region to deploy resources into" "us-central1" "region" "DEPLOY_REGION"
         prompt_and_update_tfvar "Resource naming prefix" "cs" "resource_prefix" "RES_PREFIX"
