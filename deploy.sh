@@ -15,6 +15,14 @@
 
 set -e
 
+# --- Helper Functions ---
+info() { echo -e "${C_CYAN}➡️  $1${C_RESET}"; }
+prompt() { echo -e "${C_BLUE}🤔  $1${C_RESET}"; }
+warn() { echo -e "${C_YELLOW}⚠️  $1${C_RESET}"; }
+fail() { echo -e "${C_RED}❌  $1${C_RESET}" >&2; exit 1; }
+success() { echo -e "${C_GREEN}✅  $1${C_RESET}"; }
+step() { echo -e "\n${C_BLUE}--- Step $1: $2 ---${C_RESET}"; }
+
 # --- Argument Parsing ---
 TARGET_VERSION="latest"
 while [[ "$#" -gt 0 ]]; do
@@ -59,14 +67,6 @@ C_GREEN='\033[1;32m'   # Bold/Bright Green for success
 C_YELLOW='\033[1;33m'  # Bold/Bright Yellow for warnings
 C_BLUE='\033[1;34m'    # Bold/Bright Blue for steps and prompts
 C_CYAN='\033[1;36m'    # Bold/Bright Cyan for general info
-
-# --- Helper Functions ---
-info() { echo -e "${C_CYAN}➡️  $1${C_RESET}"; }
-prompt() { echo -e "${C_BLUE}🤔  $1${C_RESET}"; }
-warn() { echo -e "${C_YELLOW}⚠️  $1${C_RESET}"; }
-fail() { echo -e "${C_RED}❌  $1${C_RESET}" >&2; exit 1; }
-success() { echo -e "${C_GREEN}✅  $1${C_RESET}"; }
-step() { echo -e "\n${C_BLUE}--- Step $1: $2 ---${C_RESET}"; }
 
 # --- Terminal Spinner ---
 spinner() {
