@@ -138,3 +138,9 @@ variable "run_sa_project_roles" {
     "roles/secretmanager.secretAccessor",
   ]
 }
+
+variable "app_version" {
+  type = string
+  description = "version of the creative studio app we're deploying"
+  default = "latest"
+}

@@ -42,7 +42,7 @@ locals {
 
 resource "google_cloud_run_v2_service" "backend" {
   name                = var.service_name
-  location            = var.gcp_region
+  location            = var.region
   custom_audiences    = var.custom_audiences
   deletion_protection = false
   
